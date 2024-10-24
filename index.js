@@ -1,8 +1,12 @@
 const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { Player } = require('discord-player');
-const { token, clientId, guildId } = require('./config.json');
 require('@discord-player/downloader');
 const { YoutubeiExtractor } = require('discord-player-youtubei');
+
+// Use environment variables
+const token = process.env.DISCORD_TOKEN;
+const clientId = process.env.DISCORD_CLIENT_ID;
+const guildId = process.env.DISCORD_GUILD_ID;
 
 const client = new Client({
     intents: [
@@ -15,7 +19,7 @@ const client = new Client({
 
 // Initialize the player
 const player = new Player(client, {
-    bufferingTimeout: 3000, // Increased buffer timeout to 3 seconds
+    bufferingTimeout: 3000, // Increased buffer timeout
     leaveOnEnd: false,      // Prevent bot from leaving when the queue ends
     leaveOnStop: false,     // Prevent bot from leaving when stopped
     leaveOnEmpty: true,     // Leave if the voice channel is empty
@@ -27,9 +31,6 @@ const player = new Player(client, {
 player.extractors.register(YoutubeiExtractor);
 
 const rest = new REST({ version: '10' }).setToken(token);
-
-// Cooldown map for command usage
-let cooldowns = new Map();
 
 // Register slash commands for a single guild (your server)
 (async () => {
@@ -109,22 +110,6 @@ player.on('emptyQueue', (queue) => {
 client.on('interactionCreate', async interaction => {
     if (!interaction.isCommand()) return;
 
-    const now = Date.now();
-    const cooldownAmount = 5000; // 5-second cooldown
-
-    // Check if the user is in cooldown
-    if (cooldowns.has(interaction.user.id)) {
-        const expirationTime = cooldowns.get(interaction.user.id) + cooldownAmount;
-
-        if (now < expirationTime) {
-            const timeLeft = (expirationTime - now) / 1000;
-            return interaction.reply(`Please wait ${timeLeft.toFixed(1)} more seconds before using this command.`);
-        }
-    }
-
-    cooldowns.set(interaction.user.id, now);
-    setTimeout(() => cooldowns.delete(interaction.user.id), cooldownAmount);
-
     const { commandName, options } = interaction;
 
     // Play command
@@ -135,19 +120,18 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply('You need to be in a voice channel to play music!');
         }
 
-        // Defer reply to prevent timeout errors
-        await interaction.deferReply();
+        await interaction.deferReply();  // Defer response for long-running task
 
         const queue = await player.nodes.create(interaction.guild, {
             metadata: {
                 channel: interaction.channel
             },
-            bufferingTimeout: 3000, // Increase buffer timeout to 3 seconds
-            leaveOnEnd: false,      // Prevent bot from leaving when queue is empty
-            leaveOnStop: false,     // Prevent bot from leaving on stop command
-            leaveOnEmpty: true,     // Leaves if the voice channel is empty
+            bufferingTimeout: 3000,
+            leaveOnEnd: false,
+            leaveOnStop: false,
+            leaveOnEmpty: true,
             initialVolume: 50,
-            crossfade: true         // Enable crossfade between songs
+            crossfade: true
         });
 
         try {
@@ -167,35 +151,13 @@ client.on('interactionCreate', async interaction => {
 
             queue.play(track);
 
-            // Now Playing Embed
             const embed = new EmbedBuilder()
                 .setTitle('Now Playing')
                 .setDescription(`🎵 **${track.title}**\n🕒 ${track.duration}\n👤 ${track.author}`)
                 .setThumbnail(track.thumbnail)
                 .setURL(track.url);
 
-            // Button Row
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('pause')
-                        .setLabel('Pause')
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setCustomId('stop')
-                        .setLabel('Stop')
-                        .setStyle(ButtonStyle.Danger),
-                    new ButtonBuilder()
-                        .setCustomId('skip')
-                        .setLabel('Skip')
-                        .setStyle(ButtonStyle.Success),
-                    new ButtonBuilder()
-                        .setCustomId('loop')
-                        .setLabel('Loop')
-                        .setStyle(ButtonStyle.Secondary)
-                );
-
-            await interaction.followUp({ embeds: [embed], components: [row] });
+            await interaction.followUp({ embeds: [embed] });
         } catch (error) {
             console.error(error);
             interaction.followUp('There was an error processing your request.');
@@ -204,18 +166,16 @@ client.on('interactionCreate', async interaction => {
 
     // Queue command
     if (commandName === 'queue') {
-        await interaction.deferReply();
-
         const queue = player.nodes.get(interaction.guild.id);
         if (!queue || !queue.tracks.length) {
-            return interaction.followUp('The queue is empty.');
+            return interaction.reply('The queue is empty.');
         }
         const tracks = queue.tracks.slice(0, 10).map((track, i) => `${i + 1}. ${track.title} - ${track.author}`);
         const embed = new EmbedBuilder()
             .setTitle('Current Queue')
             .setDescription(tracks.join('\n'))
             .setFooter({ text: `Total: ${queue.tracks.length} tracks` });
-        interaction.followUp({ embeds: [embed] });
+        interaction.reply({ embeds: [embed] });
     }
 
     // Volume command
@@ -250,61 +210,21 @@ client.on('interactionCreate', async interaction => {
 
     // Lyrics command
     if (commandName === 'lyrics') {
-        await interaction.deferReply();
-
         const queue = player.nodes.get(interaction.guild.id);
-        if (!queue || !queue.node.isPlaying()) return interaction.followUp('No music is playing.');
+        if (!queue || !queue.node.isPlaying()) return interaction.reply('No music is playing.');
 
         const track = queue.current;
         try {
-            const lyrics = await fetchLyrics(track.title);
-            if (!lyrics) return interaction.followUp('No lyrics found for this song.');
+            const lyrics = await fetchLyrics(track.title); // Replace with actual lyrics fetching logic
+            if (!lyrics) return interaction.reply('No lyrics found for this song.');
 
             const embed = new EmbedBuilder()
                 .setTitle(`Lyrics for ${track.title}`)
                 .setDescription(lyrics.slice(0, 4096)); // Discord embeds limit to 4096 characters
-            interaction.followUp({ embeds: [embed] });
+            interaction.reply({ embeds: [embed] });
         } catch (error) {
             console.error(error);
-            interaction.followUp('Failed to fetch lyrics.');
-        }
-    }
-});
-
-// Button handling
-client.on('interactionCreate', async interaction => {
-    if (interaction.isButton()) {
-        const queue = player.nodes.get(interaction.guild.id);
-
-        if (!queue) {
-            return interaction.update({ content: 'There is no active queue.', ephemeral: true });
-        }
-
-        switch (interaction.customId) {
-            case 'pause':
-                if (queue.node.isPlaying()) {
-                    queue.node.pause();
-                    await interaction.update({ content: 'Paused the music.' });
-                } else {
-                    queue.node.resume();
-                    await interaction.update({ content: 'Resumed the music.' });
-                }
-                break;
-            case 'stop':
-                queue.destroy();
-                await interaction.update({ content: 'Stopped the music and cleared the queue.' });
-                break;
-            case 'skip':
-                queue.skip();
-                await interaction.update({ content: 'Skipped the current track.' });
-                break;
-            case 'loop':
-                const loopMode = queue.repeatMode === 1 ? 0 : 1;
-                queue.setRepeatMode(loopMode);
-                await interaction.update({ content: `Loop is now ${loopMode === 1 ? 'enabled' : 'disabled'}.` });
-                break;
-            default:
-                await interaction.update({ content: 'Unknown button interaction.', ephemeral: true });
+            interaction.reply('Failed to fetch lyrics.');
         }
     }
 });
