@@ -1,15 +1,20 @@
 const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { Player } = require('discord-player');
-const { token, clientId, guildId } = require('./config.json');
 require('@discord-player/downloader');
 const { YoutubeiExtractor } = require('discord-player-youtubei');
 
+// Get environment variables from Render or your environment
+const token = process.env.DISCORD_TOKEN; // Set in Render's environment variables
+const clientId = process.env.CLIENT_ID;  // Set in Render's environment variables
+const guildId = process.env.GUILD_ID;    // Set in Render's environment variables
+
+// Initialize the client with necessary intents
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMembers // Added GuildMembers intent to check roles
+        GatewayIntentBits.GuildMembers
     ]
 });
 
@@ -21,7 +26,7 @@ player.extractors.register(YoutubeiExtractor);
 
 const rest = new REST({ version: '10' }).setToken(token);
 
-// Register slash commands for a single guild (your server)
+// Register slash commands for your server
 (async () => {
     try {
         console.log('Started refreshing application (/) commands.');
@@ -39,8 +44,7 @@ const rest = new REST({ version: '10' }).setToken(token);
                             description: 'The URL or name of the song to play',
                             required: true
                         }]
-                    },
-                    // Add other command registrations if needed...
+                    }
                 ]
             }
         );
@@ -70,7 +74,14 @@ client.on('interactionCreate', async interaction => {
             const queue = await player.nodes.create(interaction.guild, {
                 metadata: {
                     channel: interaction.channel
-                }
+                },
+                leaveOnEnd: false,
+                leaveOnStop: false,
+                leaveOnEmpty: true,
+                autoSelfDeaf: false,
+                bufferingTimeout: 5000, // Increase timeout for better buffering
+                volumeSmoothness: 0.1,  // Smoother volume transitions
+                connectionTimeout: 30000 // Prevent cutting out
             });
 
             try {
@@ -90,7 +101,7 @@ client.on('interactionCreate', async interaction => {
 
                 // Play the track
                 queue.play(track);
-                queue.node.setVolume(50); // Default volume
+                queue.node.setVolume(75); // Reasonable default volume
 
                 // Now Playing Embed
                 const embed = new EmbedBuilder()
