@@ -13,6 +13,7 @@
     "discord-player": "^5.0.0",
     "@discord-player/downloader": "^1.0.0",
     "discord-player-youtubei": "^1.0.0",
-    "@discordjs/rest": "^1.0.0"
+    "@discordjs/rest": "^1.0.0",
+    "ytdl-core": "^4.11.2"
   }
 }
