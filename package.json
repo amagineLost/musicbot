@@ -15,5 +15,8 @@
     "discord-player-youtubei": "^1.0.0",
     "@discordjs/rest": "^1.0.0",
     "ytdl-core": "^4.11.2"
+  },
+  "resolutions": {
+    "youtube-dl": "0.0.0"
   }
 }
