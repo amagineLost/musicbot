@@ -1,5 +1,6 @@
 const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { Player } = require('discord-player');
+const ytdl = require('ytdl-core');
 require('@discord-player/downloader');
 const { YoutubeiExtractor } = require('discord-player-youtubei');
 
@@ -120,12 +121,10 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply('You need to be in a voice channel to play music!');
         }
 
-        await interaction.deferReply();  // Defer response for long-running task
+        await interaction.deferReply();
 
         const queue = await player.nodes.create(interaction.guild, {
-            metadata: {
-                channel: interaction.channel
-            },
+            metadata: { channel: interaction.channel },
             bufferingTimeout: 3000,
             leaveOnEnd: false,
             leaveOnStop: false,
@@ -135,25 +134,22 @@ client.on('interactionCreate', async interaction => {
         });
 
         try {
-            if (!queue.connection) await queue.connect(interaction.member.voice.channel, { deaf: false });
-        } catch {
-            queue.destroy();
-            return interaction.followUp('Could not join your voice channel!');
-        }
+            if (!queue.connection) await queue.connect(interaction.member.voice.channel);
 
-        try {
-            const track = await player.search(query, {
-                requestedBy: interaction.user,
-                searchEngine: 'youtube'
-            }).then(x => x.tracks[0]);
-
-            if (!track) return interaction.followUp(`Track ${query} not found!`);
+            const trackInfo = await ytdl.getInfo(query);
+            const track = {
+                title: trackInfo.videoDetails.title,
+                url: trackInfo.videoDetails.video_url,
+                author: trackInfo.videoDetails.author.name,
+                duration: trackInfo.videoDetails.lengthSeconds,
+                thumbnail: trackInfo.videoDetails.thumbnails[0].url
+            };
 
             queue.play(track);
 
             const embed = new EmbedBuilder()
                 .setTitle('Now Playing')
-                .setDescription(`🎵 **${track.title}**\n🕒 ${track.duration}\n👤 ${track.author}`)
+                .setDescription(`🎵 **${track.title}**\n🕒 ${track.duration} seconds\n👤 ${track.author}`)
                 .setThumbnail(track.thumbnail)
                 .setURL(track.url);
 
@@ -239,8 +235,7 @@ player.on('error', (queue, error) => {
 
 // Mock function to simulate fetching lyrics (use an actual API or module)
 async function fetchLyrics(trackTitle) {
-    // Implement the actual lyrics fetching logic here, this is just a placeholder
-    return `Lyrics for ${trackTitle}`;
+    return `Lyrics for ${trackTitle}`; // Replace with actual API integration for lyrics
 }
 
 // Login to Discord
