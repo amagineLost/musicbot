@@ -15,23 +15,15 @@ intents.guilds = True
 intents.messages = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Start XP event every 15 minutes
+# Start XP event every 15 minutes silently
 @tasks.loop(minutes=15)
 async def start_xp_event():
     global event_running
     event_running = True
-    channel = bot.get_channel(event_channel_id)
-    await channel.send("🎉 **XP Event is happening!** 🎉 Chat in this channel to earn XP. Whoever is on top of the leaderboard when it ends will win a reward!")
 
     # End the XP event after 5 minutes
     await discord.utils.sleep_until(discord.utils.utcnow() + discord.timedelta(minutes=5))
     event_running = False
-
-    # Announce the winner
-    if xp_leaderboard:
-        winner = max(xp_leaderboard, key=xp_leaderboard.get)
-        winner_xp = xp_leaderboard[winner]
-        await channel.send(f"🏆 **XP Event has ended!** 🏆\nCongratulations <@{winner}> with {winner_xp} XP! You win the reward!")
 
     # Reset XP leaderboard for the next event
     xp_leaderboard.clear()
