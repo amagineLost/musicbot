@@ -40,6 +40,16 @@ def get_affinity_statement(score):
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}!')
+    
+    # Fetch recent messages in the specified channel
+    channel = bot.get_channel(1292553891581268010)  # Use your channel ID here
+    async for message in channel.history(limit=100):  # Check the last 100 messages
+        for name, user_id in tracked_users.items():
+            if str(user_id) in message.content or name in message.content:
+                for other_name in tracked_users.keys():
+                    if other_name != name and (str(tracked_users[other_name]) in message.content or other_name in message.content):
+                        interaction_data[name][other_name] += 1
+    print("Historical message analysis complete.")
 
 @bot.event
 async def on_message(message):
