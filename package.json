@@ -1,22 +1,15 @@
 {
-  "name": "discord-music-bot",
+  "name": "discord-bot",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Discord bot for tracking user interactions",
+  "main": "bot.py",
   "scripts": {
-    "start": "node index.js"
+    "start": "python bot.py"
+  },
+  "dependencies": {
+    "discord.py": "^2.0.0"
   },
   "engines": {
     "node": "16.x"
-  },
-  "dependencies": {
-    "discord.js": "^14.0.0",
-    "discord-player": "^5.0.0",
-    "@discord-player/downloader": "^1.0.0",
-    "discord-player-youtubei": "^1.0.0",
-    "@discordjs/rest": "^1.0.0",
-    "ytdl-core": "^4.11.2"
-  },
-  "resolutions": {
-    "youtube-dl": "0.0.0"
   }
 }
