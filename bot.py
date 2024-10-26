@@ -68,14 +68,24 @@ async def on_message(message):
 
 @bot.command()
 async def check_affinity(ctx, user1: str, user2: str):
-    # Ensure both users are tracked
-    if user1 in tracked_users and user2 in tracked_users and user1 != user2:
+    # Custom responses for specific pairs
+    if (user1 == "Karm" and user2 == "Samir") or (user1 == "Samir" and user2 == "Karm"):
+        score = 85
+        statement = "These two talk like lovers and seem destined to be together!"
+    elif (user1 == "Allie" and user2 == "Samir") or (user1 == "Samir" and user2 == "Allie"):
+        score = 77
+        statement = "They truly love each other and share a deep connection!"
+    # General case for other pairs
+    elif user1 in tracked_users and user2 in tracked_users and user1 != user2:
         interaction_count = interaction_data[user1][user2]
         score = calculate_affinity_score(interaction_count)
         statement = get_affinity_statement(score)
-        await ctx.send(f'Affinity Score between {user1} and {user2}: {score}%\n{statement}')
     else:
         await ctx.send("Please provide valid tracked usernames (Karm, Samir, Allie) for comparison.")
+        return
+
+    # Send the response
+    await ctx.send(f'Affinity Score between {user1} and {user2}: {score}%\n{statement}')
 
 # Run the bot with your token (use Render environment variables for secure storage)
 bot.run(os.getenv("DISCORD_TOKEN"))
