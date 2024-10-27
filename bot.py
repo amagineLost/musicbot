@@ -3,12 +3,37 @@ from discord.ext import commands, tasks
 import os
 from collections import defaultdict
 from datetime import timedelta, datetime
+import json
 
 # Define the XP leaderboard, event channel, and image storage
 xp_leaderboard = defaultdict(int)
 event_channel_id = 1292553891581268010
 event_running = False
 image_storage = {}
+
+# Load data from JSON files
+def load_data():
+    global xp_leaderboard, image_storage
+    try:
+        with open("xp_leaderboard.json", "r") as f:
+            xp_leaderboard = defaultdict(int, json.load(f))
+    except FileNotFoundError:
+        pass
+    try:
+        with open("image_storage.json", "r") as f:
+            image_storage = json.load(f)
+    except FileNotFoundError:
+        pass
+
+# Save data to JSON files
+def save_data():
+    with open("xp_leaderboard.json", "w") as f:
+        json.dump(xp_leaderboard, f)
+    with open("image_storage.json", "w") as f:
+        json.dump(image_storage, f)
+
+# Load data at the start
+load_data()
 
 # Set up bot with command prefix and intents
 intents = discord.Intents.default()
@@ -31,6 +56,7 @@ async def start_xp_event():
 
     # Reset XP leaderboard for the next event
     xp_leaderboard.clear()
+    save_data()  # Save leaderboard reset
 
 # Update leaderboard on each message
 @bot.event
@@ -44,6 +70,7 @@ async def on_message(message):
     # Only count messages towards XP if an event is running
     if event_running:
         xp_leaderboard[message.author.id] += 1
+        save_data()  # Save leaderboard on each message
 
     await bot.process_commands(message)
 
@@ -65,6 +92,7 @@ async def leaderboard(ctx):
 async def store(ctx, username: str, image_url: str):
     # Store or update the image URL for the user
     image_storage[username] = image_url
+    save_data()  # Save updated image URL
     await ctx.send(f"Updated image for {username}.")
 
 # Command to retrieve the stored image for a user
@@ -81,6 +109,11 @@ async def proof(ctx, username: str):
 async def on_ready():
     print(f'Logged in as {bot.user}!')
     start_xp_event.start()  # Start the XP event loop
+
+# Save data on bot shutdown
+@bot.event
+async def on_disconnect():
+    save_data()
 
 # Run the bot with your token (use Render environment variables for secure storage)
 bot.run(os.getenv("DISCORD_TOKEN"))
