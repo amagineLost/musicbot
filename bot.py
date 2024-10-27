@@ -5,7 +5,6 @@ import aiohttp
 import json
 import sqlite3
 from datetime import timedelta, datetime
-from collections import defaultdict
 from discord import app_commands
 from discord.ext import commands, tasks
 
@@ -26,8 +25,21 @@ event_channel_id = 1292553891581268010
 event_running = False
 image_storage = {}
 
-# SQLite setup for XP leaderboard
-conn = sqlite3.connect("xp_leaderboard.db")
+# Set up SQLite database connection with error handling
+db_path = "xp_leaderboard.db"
+
+# Delete the database if it's corrupted
+if os.path.exists(db_path):
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    except sqlite3.DatabaseError:
+        os.remove(db_path)
+        conn = sqlite3.connect(db_path)
+
+# Now create the database and table if it doesn’t exist
+conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS xp_leaderboard (
@@ -208,7 +220,7 @@ async def on_close():
 async def on_ready():
     await bot.tree.sync()
     print(f'Logged in as {bot.user}')
-    start_xp_event.start()  # Start the XP event loop
+    start_xp_event.start()
 
 bot.setup_hook = setup_hook
 
