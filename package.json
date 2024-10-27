@@ -1,15 +1,16 @@
 {
   "name": "discord-bot",
   "version": "1.0.0",
-  "description": "Discord bot for tracking user interactions",
+  "description": "A Discord bot with XP leaderboard and image storage",
   "main": "bot.py",
   "scripts": {
     "start": "python bot.py"
   },
   "dependencies": {
-    "discord.py": "^2.0.0"
+    "discord.py": "^2.0.0",
+    "sqlite3": "^5.0.2"
   },
   "engines": {
-    "node": "16.x"
+    "node": "16.x"  // Adjust as needed for compatibility with Render
   }
 }
