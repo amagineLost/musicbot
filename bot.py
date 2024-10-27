@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 import os
 from collections import defaultdict
+from datetime import timedelta, datetime
 
 # Define the XP leaderboard, event channel, and image storage
 xp_leaderboard = defaultdict(int)
@@ -24,7 +25,7 @@ async def start_xp_event():
     print("XP event started.")
 
     # End the XP event after 5 minutes
-    await discord.utils.sleep_until(discord.utils.utcnow() + discord.timedelta(minutes=5))
+    await discord.utils.sleep_until(datetime.utcnow() + timedelta(minutes=5))
     event_running = False
     print("XP event ended.")
 
