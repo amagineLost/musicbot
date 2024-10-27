@@ -3,12 +3,13 @@ from discord.ext import commands, tasks
 import os
 from collections import defaultdict
 
-# Define the XP leaderboard and event channel
+# Define the XP leaderboard, event channel, and image storage
 xp_leaderboard = defaultdict(int)
 event_channel_id = 1292553891581268010
 event_running = False
+image_storage = {}
 
-# Set up bot with command prefix
+# Set up bot with command prefix and intents
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -20,10 +21,12 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 async def start_xp_event():
     global event_running
     event_running = True
+    print("XP event started.")
 
     # End the XP event after 5 minutes
     await discord.utils.sleep_until(discord.utils.utcnow() + discord.timedelta(minutes=5))
     event_running = False
+    print("XP event ended.")
 
     # Reset XP leaderboard for the next event
     xp_leaderboard.clear()
@@ -55,6 +58,23 @@ async def leaderboard(ctx):
         await ctx.send(leaderboard_message)
     else:
         await ctx.send("The leaderboard is currently empty.")
+
+# Command to store a new image URL for a user
+@bot.command()
+async def store(ctx, username: str, image_url: str):
+    # Store or update the image URL for the user
+    image_storage[username] = image_url
+    await ctx.send(f"Updated image for {username}.")
+
+# Command to retrieve the stored image for a user
+@bot.command()
+async def proof(ctx, username: str):
+    # Retrieve the image for the user
+    image_url = image_storage.get(username)
+    if image_url:
+        await ctx.send(f"Image for {username}: {image_url}")
+    else:
+        await ctx.send(f"No image stored for {username}.")
 
 @bot.event
 async def on_ready():
