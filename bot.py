@@ -5,6 +5,7 @@ import aiohttp
 import json
 import sqlite3
 from datetime import timedelta, datetime
+from discord import app_commands
 from discord.ext import commands, tasks
 
 # Set up logging
@@ -78,6 +79,29 @@ intents.message_content = True
 
 # Create bot and command tree
 bot = commands.Bot(command_prefix="!", intents=intents)
+tree = bot.tree
+
+# Restrict command access to specific roles
+def has_restricted_roles():
+    async def predicate(interaction: discord.Interaction):
+        allowed_roles = ALLOWED_ROLE_IDS
+        user_roles = [role.id for role in interaction.user.roles]
+        if any(role_id in user_roles for role_id in allowed_roles):
+            return True
+        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+        return False
+    return app_commands.check(predicate)
+
+# Send message command
+@tree.command(name="send_message", description="Send a message to a specific channel.")
+@has_restricted_roles()
+async def send_message(interaction: discord.Interaction, channel: discord.TextChannel, *, message: str):
+    try:
+        await channel.send(message)
+        await interaction.response.send_message(f"Message sent to {channel.mention}", ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in /send_message command: {e}")
+        await interaction.response.send_message("An error occurred while sending the message.", ephemeral=True)
 
 # Task to start XP event every hour with logging control
 @tasks.loop(hours=1)
@@ -98,6 +122,7 @@ async def start_xp_event():
 @bot.event
 async def on_ready():
     logger.info(f'Logged in as {bot.user}')
+    await tree.sync()  # Ensure all application commands are synced
     start_xp_event.start()
 
 # Handle unknown commands to reduce log noise
