@@ -119,6 +119,28 @@ async def start_xp_event():
     cursor.execute("DELETE FROM xp_leaderboard")
     conn.commit()
 
+# Leaderboard command to display the top 10 users
+@bot.command(name="leaderboard1", help="Displays the top 10 users in the XP leaderboard.")
+async def leaderboard1(ctx):
+    try:
+        # Fetch top 10 users sorted by XP in descending order
+        cursor.execute("SELECT user_id, xp FROM xp_leaderboard ORDER BY xp DESC LIMIT 10")
+        leaderboard_data = cursor.fetchall()
+        
+        # Format the leaderboard message
+        if leaderboard_data:
+            leaderboard_message = "**XP Leaderboard**\n\n"
+            for rank, (user_id, xp) in enumerate(leaderboard_data, start=1):
+                user = bot.get_user(user_id) or f"<@{user_id}>"  # Mention the user or fallback to user_id if not found
+                leaderboard_message += f"{rank}. {user}: {xp} XP\n"
+        else:
+            leaderboard_message = "No data available on the leaderboard yet."
+
+        await ctx.send(leaderboard_message)
+    except Exception as e:
+        logger.error(f"Error retrieving leaderboard: {e}")
+        await ctx.send("An error occurred while retrieving the leaderboard.")
+
 @bot.event
 async def on_ready():
     logger.info(f'Logged in as {bot.user}')
