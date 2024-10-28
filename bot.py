@@ -108,7 +108,7 @@ async def on_command_error(ctx, error):
     else:
         logger.error(f"An error occurred: {error}")
 
-# Detect deleted messages and log to the specified channel
+# Detect deleted messages and log to the specified channel only
 @bot.event
 async def on_message_delete(message):
     if message.author.bot or message.guild.me in message.mentions:
@@ -135,7 +135,7 @@ async def on_message_delete(message):
             except Exception as e:
                 logger.error(f"Error sending deleted message log: {e}")
 
-# Detect edited messages and log the changes in the specified channel
+# Detect edited messages and log the changes in the specified channel only
 @bot.event
 async def on_message_edit(before, after):
     if before.author.bot or before.content == after.content:
