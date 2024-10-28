@@ -105,6 +105,52 @@ async def on_command_error(ctx, error):
     else:
         logger.error(f"An error occurred: {error}")
 
+# Detect deleted messages and log to the channel
+@bot.event
+async def on_message_delete(message):
+    if message.author.bot or message.guild.me in message.mentions:
+        return
+    if message.guild and message.content:
+        try:
+            # Construct reply information if applicable
+            reply_info = ""
+            if message.reference and message.reference.resolved:
+                replied_user = message.reference.resolved.author
+                reply_info = f"(This was a reply to {replied_user.mention})"
+            
+            # Embed with deleted message details
+            embed = discord.Embed(
+                title="Message Deleted",
+                description=f"{message.author.mention} deleted a message in {message.channel.mention}:\n\n'{message.content}' {reply_info}",
+                color=discord.Color.red()
+            )
+            await message.channel.send(embed=embed)
+        except discord.Forbidden:
+            logger.error("Bot does not have permission to send messages in this channel.")
+        except Exception as e:
+            logger.error(f"Error sending deleted message log: {e}")
+
+# Detect edited messages and log the changes
+@bot.event
+async def on_message_edit(before, after):
+    if before.author.bot or before.content == after.content:
+        return
+    if before.guild:
+        try:
+            # Embed with edited message details
+            embed = discord.Embed(
+                title="Message Edited",
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="Before", value=before.content, inline=False)
+            embed.add_field(name="After", value=after.content, inline=False)
+            embed.set_footer(text=f"Edited by {before.author.display_name} in #{before.channel}")
+            await before.channel.send(embed=embed)
+        except discord.Forbidden:
+            logger.error("Bot does not have permission to send messages in this channel.")
+        except Exception as e:
+            logger.error(f"Error sending edited message log: {e}")
+
 try:
     bot.run(DISCORD_TOKEN)
 except Exception as e:
