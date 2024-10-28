@@ -4,6 +4,7 @@ import logging
 import aiohttp
 import json
 import sqlite3
+import asyncio
 from datetime import timedelta, datetime
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -19,6 +20,7 @@ if not DISCORD_TOKEN:
 
 # Role IDs for restricted commands
 ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
+EXECUTE_ROLE_IDS = {1292555279246032916, 1292555408724066364, 1294509444159242270}
 
 # Event channel and image storage
 event_channel_id = 1292553891581268010
@@ -140,6 +142,33 @@ async def leaderboard1(ctx):
     except Exception as e:
         logger.error(f"Error retrieving leaderboard: {e}")
         await ctx.send("An error occurred while retrieving the leaderboard.")
+
+# Execute command to playfully countdown and kick a user
+@bot.command(name="execute", help="Playfully count down and kick a specified user.")
+async def execute(ctx, user: discord.Member):
+    # Check if the user has one of the allowed roles
+    if not any(role.id in EXECUTE_ROLE_IDS for role in ctx.author.roles):
+        await ctx.send("You do not have permission to use this command.")
+        return
+
+    try:
+        # Notify about the execution
+        message = await ctx.send(f"⚔️ Uh-oh, {user.mention}! You've been caught, and now... you're being executed! 🎬 Countdown starting...")
+
+        # Countdown from 6 to 0
+        for i in range(6, -1, -1):
+            await message.edit(content=f"⚔️ {user.mention}, execution in {i} seconds... 💀")
+            await asyncio.sleep(1)  # Wait 1 second per countdown step
+
+        # Kick the user after countdown
+        await user.kick(reason="Executed by bot command.")
+        await ctx.send(f"{user.mention} has been executed and kicked from the server! ⚔️")
+
+    except discord.Forbidden:
+        await ctx.send("I don't have permission to kick that user.")
+    except Exception as e:
+        logger.error(f"Error executing the command for {user}: {e}")
+        await ctx.send("An error occurred while trying to execute that user.")
 
 @bot.event
 async def on_ready():
