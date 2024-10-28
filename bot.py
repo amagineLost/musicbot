@@ -24,6 +24,9 @@ event_channel_id = 1292553891581268010
 event_running = False
 image_storage = {}
 
+# Channel ID where logs of deleted and edited messages will be sent
+log_channel_id = 1295049931840819280
+
 # Set up SQLite database connection with error handling
 db_path = "xp_leaderboard.db"
 
@@ -105,37 +108,40 @@ async def on_command_error(ctx, error):
     else:
         logger.error(f"An error occurred: {error}")
 
-# Detect deleted messages and log to the channel
+# Detect deleted messages and log to the specified channel
 @bot.event
 async def on_message_delete(message):
     if message.author.bot or message.guild.me in message.mentions:
         return
     if message.guild and message.content:
-        try:
-            # Construct reply information if applicable
-            reply_info = ""
-            if message.reference and message.reference.resolved:
-                replied_user = message.reference.resolved.author
-                reply_info = f"(This was a reply to {replied_user.mention})"
-            
-            # Embed with deleted message details
-            embed = discord.Embed(
-                title="Message Deleted",
-                description=f"{message.author.mention} deleted a message in {message.channel.mention}:\n\n'{message.content}' {reply_info}",
-                color=discord.Color.red()
-            )
-            await message.channel.send(embed=embed)
-        except discord.Forbidden:
-            logger.error("Bot does not have permission to send messages in this channel.")
-        except Exception as e:
-            logger.error(f"Error sending deleted message log: {e}")
+        log_channel = bot.get_channel(log_channel_id)
+        if log_channel:
+            try:
+                # Construct reply information if applicable
+                reply_info = ""
+                if message.reference and message.reference.resolved:
+                    replied_user = message.reference.resolved.author
+                    reply_info = f"(This was a reply to {replied_user.mention})"
+                
+                # Embed with deleted message details
+                embed = discord.Embed(
+                    title="Message Deleted",
+                    description=f"{message.author.mention} deleted a message in {message.channel.mention}:\n\n'{message.content}' {reply_info}",
+                    color=discord.Color.red()
+                )
+                await log_channel.send(embed=embed)
+            except discord.Forbidden:
+                logger.error("Bot does not have permission to send messages in the log channel.")
+            except Exception as e:
+                logger.error(f"Error sending deleted message log: {e}")
 
-# Detect edited messages and log the changes
+# Detect edited messages and log the changes in the specified channel
 @bot.event
 async def on_message_edit(before, after):
     if before.author.bot or before.content == after.content:
         return
-    if before.guild:
+    log_channel = bot.get_channel(log_channel_id)
+    if log_channel:
         try:
             # Embed with edited message details
             embed = discord.Embed(
@@ -145,9 +151,9 @@ async def on_message_edit(before, after):
             embed.add_field(name="Before", value=before.content, inline=False)
             embed.add_field(name="After", value=after.content, inline=False)
             embed.set_footer(text=f"Edited by {before.author.display_name} in #{before.channel}")
-            await before.channel.send(embed=embed)
+            await log_channel.send(embed=embed)
         except discord.Forbidden:
-            logger.error("Bot does not have permission to send messages in this channel.")
+            logger.error("Bot does not have permission to send messages in the log channel.")
         except Exception as e:
             logger.error(f"Error sending edited message log: {e}")
 
