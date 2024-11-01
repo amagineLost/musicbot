@@ -1,8 +1,6 @@
 import os
 import discord
 import logging
-import aiohttp
-import json
 import sqlite3
 import asyncio
 from datetime import timedelta, datetime
@@ -20,59 +18,9 @@ if not DISCORD_TOKEN:
 
 # Role IDs for restricted commands
 ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
-EXECUTE_ROLE_IDS = {1292555279246032916, 1292555408724066364, 1294509444159242270}
-
-# Event channel and image storage
-event_channel_id = 1292553891581268010
-event_running = False
-image_storage = {}
 
 # Channel ID where logs of deleted and edited messages will be sent
 log_channel_id = 1295049931840819280
-
-# Set up SQLite database connection with error handling
-db_path = "xp_leaderboard.db"
-
-# Delete the database if it's corrupted
-if os.path.exists(db_path):
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    except sqlite3.DatabaseError:
-        os.remove(db_path)
-        conn = sqlite3.connect(db_path)
-
-# Now create the database and table if it doesn’t exist
-conn = sqlite3.connect(db_path)
-cursor = conn.cursor()
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS xp_leaderboard (
-    user_id INTEGER PRIMARY KEY,
-    xp INTEGER,
-    last_updated TEXT
-)
-""")
-conn.commit()
-
-# Load image data from JSON
-def load_image_data():
-    global image_storage
-    try:
-        with open("image_storage.json", "r") as f:
-            image_storage = json.load(f)
-            logger.info("Image data loaded successfully.")
-    except FileNotFoundError:
-        logger.info("No existing image storage found. Starting fresh.")
-        image_storage = {}
-
-# Save image data to JSON
-def save_image_data():
-    with open("image_storage.json", "w") as f:
-        json.dump(image_storage, f)
-        logger.info("Image data saved successfully.")
-
-load_image_data()  # Load image data on start
 
 # Enable all intents including the privileged ones
 intents = discord.Intents.default()
@@ -105,76 +53,24 @@ async def send_message(interaction: discord.Interaction, channel: discord.TextCh
         logger.error(f"Error in /send_message command: {e}")
         await interaction.response.send_message("An error occurred while sending the message.", ephemeral=True)
 
-# Task to start XP event every hour with logging control
-@tasks.loop(hours=1)
-async def start_xp_event():
-    global event_running
-    event_running = True
-    logger.info("XP event started.")
-
-    # End the XP event after 5 minutes
-    await discord.utils.sleep_until(datetime.utcnow() + timedelta(minutes=5))
-    event_running = False
-    logger.info("XP event ended.")
-
-    # Clear the XP leaderboard after the event ends
-    cursor.execute("DELETE FROM xp_leaderboard")
-    conn.commit()
-
-# Leaderboard command to display the top 10 users
-@bot.command(name="leaderboard1", help="Displays the top 10 users in the XP leaderboard.")
-async def leaderboard1(ctx):
+# /allie command to explain why Allie and Cole Walters should be together
+@tree.command(name="allie", description="Explain why Allie and Cole Walters should be together.")
+async def allie(interaction: discord.Interaction):
     try:
-        # Fetch top 10 users sorted by XP in descending order
-        cursor.execute("SELECT user_id, xp FROM xp_leaderboard ORDER BY xp DESC LIMIT 10")
-        leaderboard_data = cursor.fetchall()
-        
-        # Format the leaderboard message
-        if leaderboard_data:
-            leaderboard_message = "**XP Leaderboard**\n\n"
-            for rank, (user_id, xp) in enumerate(leaderboard_data, start=1):
-                user = bot.get_user(user_id) or f"<@{user_id}>"  # Mention the user or fallback to user_id if not found
-                leaderboard_message += f"{rank}. {user}: {xp} XP\n"
-        else:
-            leaderboard_message = "No data available on the leaderboard yet."
-
-        await ctx.send(leaderboard_message)
+        paragraph = (
+            "Allie and Cole Walters from 'My Life with the Walter Boys' share an undeniable chemistry that "
+            "captures the essence of young, unexpected love. Cole’s charming and adventurous nature complements "
+            "Allie's resilience and determination as she navigates her new life. Their relationship is built on "
+            "growth, understanding, and the balance between fiery moments and heartfelt connections. Despite the "
+            "challenges they face, their dynamic brings out the best in each other, showcasing a bond that’s both "
+            "playful and deeply meaningful. The way Cole’s spontaneity pushes Allie out of her comfort zone, and how "
+            "she, in turn, grounds him with her thoughtful presence, forms a story that is not only compelling but "
+            "also a testament to how opposites can attract and create a beautiful partnership."
+        )
+        await interaction.response.send_message(paragraph, ephemeral=False)
     except Exception as e:
-        logger.error(f"Error retrieving leaderboard: {e}")
-        await ctx.send("An error occurred while retrieving the leaderboard.")
-
-# Execute command to playfully countdown and kick a user
-@bot.command(name="execute", help="Playfully count down and kick a specified user.")
-async def execute(ctx, user: discord.Member):
-    # Check if the user has one of the allowed roles
-    if not any(role.id in EXECUTE_ROLE_IDS for role in ctx.author.roles):
-        await ctx.send("You do not have permission to use this command.")
-        return
-
-    try:
-        # Notify about the execution
-        message = await ctx.send(f"⚔️ Uh-oh, {user.mention}! You've been caught, and now... you're being executed! 🎬 Countdown starting...")
-
-        # Countdown from 6 to 0
-        for i in range(6, -1, -1):
-            await message.edit(content=f"⚔️ {user.mention}, execution in {i} seconds... 💀")
-            await asyncio.sleep(1)  # Wait 1 second per countdown step
-
-        # Kick the user after countdown
-        await user.kick(reason="Executed by bot command.")
-        await ctx.send(f"{user.mention} has been executed and kicked from the server! ⚔️")
-
-    except discord.Forbidden:
-        await ctx.send("I don't have permission to kick that user.")
-    except Exception as e:
-        logger.error(f"Error executing the command for {user}: {e}")
-        await ctx.send("An error occurred while trying to execute that user.")
-
-@bot.event
-async def on_ready():
-    logger.info(f'Logged in as {bot.user}')
-    await tree.sync()  # Ensure all application commands are synced
-    start_xp_event.start()
+        logger.error(f"Error in /allie command: {e}")
+        await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
 # Handle unknown commands to reduce log noise
 @bot.event
@@ -193,16 +89,10 @@ async def on_message_delete(message):
         log_channel = bot.get_channel(log_channel_id)
         if log_channel:
             try:
-                # Construct reply information if applicable
-                reply_info = ""
-                if message.reference and message.reference.resolved:
-                    replied_user = message.reference.resolved.author
-                    reply_info = f"(This was a reply to {replied_user.mention})"
-                
                 # Embed with deleted message details
                 embed = discord.Embed(
                     title="Message Deleted",
-                    description=f"{message.author.mention} deleted a message in {message.channel.mention}:\n\n'{message.content}' {reply_info}",
+                    description=f"{message.author.mention} deleted a message in {message.channel.mention}:\n\n'{message.content}'",
                     color=discord.Color.red()
                 )
                 await log_channel.send(embed=embed)
@@ -232,6 +122,11 @@ async def on_message_edit(before, after):
             logger.error("Bot does not have permission to send messages in the log channel.")
         except Exception as e:
             logger.error(f"Error sending edited message log: {e}")
+
+@bot.event
+async def on_ready():
+    logger.info(f'Logged in as {bot.user}')
+    await tree.sync()  # Ensure all application commands are synced
 
 try:
     bot.run(DISCORD_TOKEN)
