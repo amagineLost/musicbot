@@ -42,7 +42,7 @@ def has_restricted_roles():
         return False
     return app_commands.check(predicate)
 
-# Send message command
+# /send_message command
 @tree.command(name="send_message", description="Send a message to a specific channel.")
 @has_restricted_roles()
 async def send_message(interaction: discord.Interaction, channel: discord.TextChannel, *, message: str):
@@ -70,6 +70,31 @@ async def allie(interaction: discord.Interaction):
         await interaction.response.send_message(paragraph, ephemeral=False)
     except Exception as e:
         logger.error(f"Error in /allie command: {e}")
+        await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
+
+# /kiss command
+@tree.command(name="kiss", description="Allie kisses Zeeke!")
+async def kiss(interaction: discord.Interaction):
+    try:
+        # Fixed names for the kiss interaction
+        sender = 'Allie'
+        receiver = 'Zeeke'
+        
+        # Count of interactions (this should be dynamically managed with a database in a real setup)
+        kiss_count = 33  # Example count, update logic as needed for real tracking
+        
+        # Create the embed message
+        embed = discord.Embed(
+            description=f"{sender} returned {receiver}'s kiss. ~\nkarm and {receiver} have kissed {kiss_count} times.",
+            color=discord.Color.pink()
+        )
+        embed.set_image(url='https://cdn.nekotina.com/images/vuywvDR4.gif')  # Provided image link
+        embed.set_footer(text='Anime: Kanojo, Okarishimasu')
+
+        # Send the embed response
+        await interaction.response.send_message(embed=embed)
+    except Exception as e:
+        logger.error(f"Error in /kiss command: {e}")
         await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
 # Handle unknown commands to reduce log noise
