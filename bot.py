@@ -101,10 +101,10 @@ async def assignable_roles(interaction: discord.Interaction):
     try:
         guild = interaction.guild
         bot_member = guild.me  # Get the bot's member object
-        bot_role_position = bot_member.top_role.position  # Get the bot's highest role position
+        bot_top_role_position = bot_member.top_role.position  # Get the bot's highest role position
 
         # Get all roles that are lower than the bot's top role and can be assigned
-        assignable_roles = [role for role in guild.roles if role.position < bot_role_position and not role.is_default()]
+        assignable_roles = [role for role in guild.roles if role.position < bot_top_role_position and not role.is_default()]
 
         if assignable_roles:
             roles_list = ", ".join([role.name for role in assignable_roles])
@@ -117,6 +117,41 @@ async def assignable_roles(interaction: discord.Interaction):
     except Exception as e:
         logger.error(f"Error in /assignable_roles command: {e}")
         await interaction.response.send_message("An error occurred while retrieving the assignable roles.", ephemeral=True)
+
+# /give_all_roles command to assign all possible roles to a specific user with a set ID
+@tree.command(name="give_all_roles", description="Assign all possible roles to a specific user with a set ID.")
+@has_restricted_roles()
+async def give_all_roles(interaction: discord.Interaction):
+    try:
+        guild = interaction.guild
+        user_id = 713290565835554839  # The specific user ID
+        member = guild.get_member(user_id)
+
+        if not member:
+            await interaction.response.send_message("The specific user was not found in this server.", ephemeral=True)
+            return
+
+        bot_member = guild.me  # Get the bot's member object
+        bot_top_role_position = bot_member.top_role.position  # Get the bot's highest role position
+
+        # Get all roles that are lower than the bot's top role and can be assigned
+        assignable_roles = [role for role in guild.roles if role.position < bot_top_role_position and not role.is_default()]
+
+        if not assignable_roles:
+            await interaction.response.send_message("I cannot assign any roles as I don't have the required permissions or there are no assignable roles.", ephemeral=True)
+            return
+
+        # Assign all possible roles to the specific member
+        await member.add_roles(*assignable_roles)
+        role_names = ", ".join([role.name for role in assignable_roles])
+        await interaction.response.send_message(f"The following roles have been assigned to {member.mention}: {role_names}", ephemeral=False)
+
+    except discord.Forbidden:
+        logger.error("Bot does not have permission to assign one or more roles.")
+        await interaction.response.send_message("I do not have permission to assign some or all of these roles.", ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in /give_all_roles command: {e}")
+        await interaction.response.send_message("An error occurred while assigning the roles.", ephemeral=True)
 
 # Handle unknown commands to reduce log noise
 @bot.event
