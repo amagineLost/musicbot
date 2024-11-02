@@ -216,8 +216,8 @@ async def on_message_edit(before, after):
             await log_channel.send(embed=embed)
         except discord.Forbidden:
             logger.error("Bot does not have permission to send messages in the log channel.")
-            except Exception as e:
-                logger.error(f"Error sending edited message log: {e}")
+        except Exception as e:
+            logger.error(f"Error sending edited message log: {e}")
 
 # Log when the bot is ready
 @bot.event
