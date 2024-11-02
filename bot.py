@@ -95,6 +95,29 @@ async def kissing(interaction: discord.Interaction, user1: discord.Member, user2
         logger.error(f"General error in /kissing command: {e}")
         await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
+# /assignable_roles command to list all roles the bot can potentially assign
+@tree.command(name="assignable_roles", description="List all roles that the bot can potentially assign.")
+async def assignable_roles(interaction: discord.Interaction):
+    try:
+        guild = interaction.guild
+        bot_member = guild.me  # Get the bot's member object
+        bot_role_position = bot_member.top_role.position  # Get the bot's highest role position
+
+        # Get all roles that are lower than the bot's top role and can be assigned
+        assignable_roles = [role for role in guild.roles if role.position < bot_role_position and not role.is_default()]
+
+        if assignable_roles:
+            roles_list = ", ".join([role.name for role in assignable_roles])
+            response = f"The bot can assign the following roles: {roles_list}"
+        else:
+            response = "The bot cannot assign any roles."
+
+        await interaction.response.send_message(response, ephemeral=False)
+
+    except Exception as e:
+        logger.error(f"Error in /assignable_roles command: {e}")
+        await interaction.response.send_message("An error occurred while retrieving the assignable roles.", ephemeral=True)
+
 # Handle unknown commands to reduce log noise
 @bot.event
 async def on_command_error(ctx, error):
