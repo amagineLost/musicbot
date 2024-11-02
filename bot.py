@@ -118,17 +118,20 @@ async def assignable_roles(interaction: discord.Interaction):
         logger.error(f"Error in /assignable_roles command: {e}")
         await interaction.response.send_message("An error occurred while retrieving the assignable roles.", ephemeral=True)
 
-# /give_all_roles command to assign all possible roles to a specific user with a set ID
-@tree.command(name="give_all_roles", description="Assign all possible roles to a specific user with a set ID.")
-@has_restricted_roles()
-async def give_all_roles(interaction: discord.Interaction):
+# /give_all_roles command to assign all possible roles to a specific user or allow the specific user to use it
+@tree.command(name="give_all_roles", description="Assign all possible roles to a specific user or allow the specific user to use the command.")
+async def give_all_roles(interaction: discord.Interaction, member: discord.Member = None):
     try:
         guild = interaction.guild
         user_id = 713290565835554839  # The specific user ID
-        member = guild.get_member(user_id)
 
-        if not member:
-            await interaction.response.send_message("The specific user was not found in this server.", ephemeral=True)
+        # If no member is provided, use the command user as the target
+        if member is None:
+            member = interaction.user
+
+        # Check if the command user is the specific user or has the allowed role
+        if interaction.user.id != user_id and not any(role.id in ALLOWED_ROLE_IDS for role in interaction.user.roles):
+            await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
             return
 
         bot_member = guild.me  # Get the bot's member object
@@ -202,7 +205,7 @@ async def on_message_edit(before, after):
         except discord.Forbidden:
             logger.error("Bot does not have permission to send messages in the log channel.")
         except Exception as e:
-            logger.error(f"Error sending edited message log: {e}")
+                logger.error(f"Error sending edited message log: {e}")
 
 # Log when the bot is ready
 @bot.event
