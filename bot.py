@@ -72,7 +72,7 @@ async def allie(interaction: discord.Interaction):
         logger.error(f"Error in /allie command: {e}")
         await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
-# /kissing command
+# /kissing command without image or URL
 @tree.command(name="kissing", description="Allie kisses Zeeke!")
 async def kissing(interaction: discord.Interaction):
     try:
@@ -83,12 +83,11 @@ async def kissing(interaction: discord.Interaction):
         # Count of interactions (this should be dynamically managed with a database in a real setup)
         kiss_count = 33  # Example count, update logic as needed for real tracking
         
-        # Create the embed message
+        # Create the embed message without an image
         embed = discord.Embed(
             description=f"{sender} returned {receiver}'s kiss. ~\nkarm and {receiver} have kissed {kiss_count} times.",
             color=discord.Color.from_rgb(255, 182, 193)  # Custom pink color using RGB values
         )
-        embed.set_image(url='https://cdn.nekotina.com/images/vuywvDR4.gif')  # Provided image link
         embed.set_footer(text='Anime: Kanojo, Okarishimasu')
 
         # Send the embed response
