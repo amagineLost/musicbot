@@ -122,6 +122,9 @@ async def assignable_roles(interaction: discord.Interaction):
 @tree.command(name="give_all_roles", description="Assign all possible roles that the bot can assign to a user.")
 async def give_all_roles(interaction: discord.Interaction, member: discord.Member = None):
     try:
+        # Acknowledge the interaction immediately to prevent timeout
+        await interaction.response.defer(ephemeral=True)
+
         guild = interaction.guild
         user_id = 713290565835554839  # The specific user ID
 
@@ -138,32 +141,32 @@ async def give_all_roles(interaction: discord.Interaction, member: discord.Membe
             assignable_roles = [role for role in guild.roles if role.position < bot_top_role_position and not role.is_default()]
 
             if not assignable_roles:
-                await interaction.response.send_message("I cannot assign any roles as I don't have the required permissions or there are no assignable roles.", ephemeral=True)
+                await interaction.followup.send("I cannot assign any roles as I don't have the required permissions or there are no assignable roles.", ephemeral=True)
                 return
 
             # Attempt to assign all roles to the member
             await member.add_roles(*assignable_roles)
             role_names = ", ".join([role.name for role in assignable_roles])
-            await interaction.response.send_message(f"The following roles have been assigned to {member.mention}: {role_names}", ephemeral=False)
+            await interaction.followup.send(f"The following roles have been assigned to {member.mention}: {role_names}", ephemeral=False)
 
         else:
-            await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+            await interaction.followup.send("You do not have permission to use this command.", ephemeral=True)
 
     except discord.Forbidden:
         logger.error("Bot does not have permission to assign one or more roles.")
-        await interaction.response.send_message("I do not have permission to assign one or more roles. Ensure my role is higher than the roles I'm trying to assign.", ephemeral=True)
+        await interaction.followup.send("I do not have permission to assign one or more roles. Ensure my role is higher than the roles I'm trying to assign.", ephemeral=True)
     except discord.HTTPException as http_err:
         logger.error(f"HTTPException in /give_all_roles command: {http_err}")
-        await interaction.response.send_message(f"An HTTP error occurred: {http_err}.", ephemeral=True)
+        await interaction.followup.send(f"An HTTP error occurred: {http_err}.", ephemeral=True)
     except discord.NotFound as not_found_err:
         logger.error(f"NotFound error in /give_all_roles command: {not_found_err}")
-        await interaction.response.send_message("An error occurred because the bot could not find one of the necessary roles or users.", ephemeral=True)
+        await interaction.followup.send("An error occurred because the bot could not find one of the necessary roles or users.", ephemeral=True)
     except discord.InvalidArgument as invalid_arg_err:
         logger.error(f"Invalid argument error in /give_all_roles command: {invalid_arg_err}")
-        await interaction.response.send_message("An invalid argument was provided. Ensure all inputs are valid.", ephemeral=True)
+        await interaction.followup.send("An invalid argument was provided. Ensure all inputs are valid.", ephemeral=True)
     except Exception as e:
         logger.error(f"General error in /give_all_roles command: {e}")
-        await interaction.response.send_message(f"An unexpected error occurred: {e}.", ephemeral=True)
+        await interaction.followup.send(f"An unexpected error occurred: {e}.", ephemeral=True)
 
 # Handle unknown commands to reduce log noise
 @bot.event
@@ -213,8 +216,8 @@ async def on_message_edit(before, after):
             await log_channel.send(embed=embed)
         except discord.Forbidden:
             logger.error("Bot does not have permission to send messages in the log channel.")
-        except Exception as e:
-            logger.error(f"Error sending edited message log: {e}")
+            except Exception as e:
+                logger.error(f"Error sending edited message log: {e}")
 
 # Log when the bot is ready
 @bot.event
