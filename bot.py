@@ -72,9 +72,9 @@ async def allie(interaction: discord.Interaction):
         logger.error(f"Error in /allie command: {e}")
         await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
-# /kiss command
-@tree.command(name="kiss", description="Allie kisses Zeeke!")
-async def kiss(interaction: discord.Interaction):
+# /kissing command
+@tree.command(name="kissing", description="Allie kisses Zeeke!")
+async def kissing(interaction: discord.Interaction):
     try:
         # Fixed names for the kiss interaction
         sender = 'Allie'
@@ -94,7 +94,7 @@ async def kiss(interaction: discord.Interaction):
         # Send the embed response
         await interaction.response.send_message(embed=embed)
     except Exception as e:
-        logger.error(f"Error in /kiss command: {e}")
+        logger.error(f"Error in /kissing command: {e}")
         await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
 # Handle unknown commands to reduce log noise
@@ -139,21 +139,4 @@ async def on_message_edit(before, after):
                 title="Message Edited",
                 color=discord.Color.blue()
             )
-            embed.add_field(name="Before", value=before.content, inline=False)
-            embed.add_field(name="After", value=after.content, inline=False)
-            embed.set_footer(text=f"Edited by {before.author.display_name} in #{before.channel}")
-            await log_channel.send(embed=embed)
-        except discord.Forbidden:
-            logger.error("Bot does not have permission to send messages in the log channel.")
-        except Exception as e:
-            logger.error(f"Error sending edited message log: {e}")
-
-@bot.event
-async def on_ready():
-    logger.info(f'Logged in as {bot.user}')
-    await tree.sync()  # Ensure all application commands are synced
-
-try:
-    bot.run(DISCORD_TOKEN)
-except Exception as e:
-    logger.error(f"Error starting the bot: {e}")
+            embed.add_field(nam
