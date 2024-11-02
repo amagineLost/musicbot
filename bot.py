@@ -80,12 +80,9 @@ async def kissing(interaction: discord.Interaction):
         sender = 'Allie'
         receiver = 'Zeeke'
         
-        # Count of interactions (this should be dynamically managed with a database in a real setup)
-        kiss_count = 33  # Example count, update logic as needed for real tracking
-        
         # Create the embed message without an image
         embed = discord.Embed(
-            description=f"{sender} returned {receiver}'s kiss. ~\nkarm and {receiver} have kissed {kiss_count} times.",
+            description=f"{sender} kissed {receiver}. ~\nAnd they love each other very much.",
             color=discord.Color.from_rgb(255, 182, 193)  # Custom pink color using RGB values
         )
         embed.set_footer(text='Anime: Kanojo, Okarishimasu')
