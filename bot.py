@@ -126,31 +126,31 @@ async def give_all_roles(interaction: discord.Interaction, member: discord.Membe
         await interaction.response.defer(ephemeral=True)
 
         guild = interaction.guild
-        user_id = 713290565835554839  # The specific user ID
+        bot_member = guild.me  # Get the bot's member object
+        bot_top_role_position = bot_member.top_role.position  # Get the bot's highest role position
+
+        # Get all roles that are lower than the bot's top role and can be assigned
+        assignable_roles = [role for role in guild.roles if role.position < bot_top_role_position and not role.is_default()]
+
+        if not assignable_roles:
+            await interaction.followup.send("I cannot assign any roles as I don't have the required permissions or there are no assignable roles.", ephemeral=True)
+            return
 
         # If no member is provided, use the command user as the target
         if member is None:
             member = interaction.user
 
-        # Check if the command user is the specific user or has the allowed role
-        if interaction.user.id == user_id or any(role.id in ALLOWED_ROLE_IDS for role in interaction.user.roles):
-            bot_member = guild.me  # Get the bot's member object
-            bot_top_role_position = bot_member.top_role.position  # Get the bot's highest role position
+        # Filter out roles that the member already has
+        roles_to_add = [role for role in assignable_roles if role not in member.roles]
 
-            # Get all roles that are lower than the bot's top role and can be assigned
-            assignable_roles = [role for role in guild.roles if role.position < bot_top_role_position and not role.is_default()]
+        if not roles_to_add:
+            await interaction.followup.send(f"{member.mention} already has all the roles that I can assign.", ephemeral=True)
+            return
 
-            if not assignable_roles:
-                await interaction.followup.send("I cannot assign any roles as I don't have the required permissions or there are no assignable roles.", ephemeral=True)
-                return
-
-            # Attempt to assign all roles to the member
-            await member.add_roles(*assignable_roles)
-            role_names = ", ".join([role.name for role in assignable_roles])
-            await interaction.followup.send(f"The following roles have been assigned to {member.mention}: {role_names}", ephemeral=False)
-
-        else:
-            await interaction.followup.send("You do not have permission to use this command.", ephemeral=True)
+        # Attempt to assign the roles
+        await member.add_roles(*roles_to_add)
+        role_names = ", ".join([role.name for role in roles_to_add])
+        await interaction.followup.send(f"The following roles have been assigned to {member.mention}: {role_names}", ephemeral=False)
 
     except discord.Forbidden:
         logger.error("Bot does not have permission to assign one or more roles.")
