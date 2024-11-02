@@ -93,8 +93,14 @@ async def kissing(interaction: discord.Interaction):
 
         # Send the embed response
         await interaction.response.send_message(embed=embed)
+    except discord.HTTPException as http_err:
+        logger.error(f"HTTPException in /kissing command: {http_err}")
+        await interaction.response.send_message("An error occurred while generating the message due to an HTTP error.", ephemeral=True)
+    except discord.Forbidden as forbidden_err:
+        logger.error(f"Forbidden error in /kissing command: {forbidden_err}")
+        await interaction.response.send_message("An error occurred due to lack of permissions.", ephemeral=True)
     except Exception as e:
-        logger.error(f"Error in /kissing command: {e}")
+        logger.error(f"General error in /kissing command: {e}")
         await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
 # Handle unknown commands to reduce log noise
