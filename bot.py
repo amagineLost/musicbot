@@ -132,6 +132,11 @@ async def give_all_roles(interaction: discord.Interaction, member: discord.Membe
         # Get all roles that are lower than the bot's top role and can be assigned
         assignable_roles = [role for role in guild.roles if role.position < bot_top_role_position and not role.is_default()]
 
+        # Debug: Log all roles that cannot be assigned
+        unassignable_roles = [role for role in guild.roles if role.position >= bot_top_role_position]
+        if unassignable_roles:
+            logger.info(f"The bot cannot assign the following roles due to hierarchy: {', '.join(role.name for role in unassignable_roles)}")
+
         if not assignable_roles:
             await interaction.followup.send("I cannot assign any roles as I don't have the required permissions or there are no assignable roles.", ephemeral=True)
             return
