@@ -141,19 +141,29 @@ async def give_all_roles(interaction: discord.Interaction, member: discord.Membe
                 await interaction.response.send_message("I cannot assign any roles as I don't have the required permissions or there are no assignable roles.", ephemeral=True)
                 return
 
-            # Assign all possible roles to the specific member
+            # Attempt to assign all roles to the member
             await member.add_roles(*assignable_roles)
             role_names = ", ".join([role.name for role in assignable_roles])
             await interaction.response.send_message(f"The following roles have been assigned to {member.mention}: {role_names}", ephemeral=False)
+
         else:
             await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
 
     except discord.Forbidden:
         logger.error("Bot does not have permission to assign one or more roles.")
-        await interaction.response.send_message("I do not have permission to assign some or all of these roles.", ephemeral=True)
+        await interaction.response.send_message("I do not have permission to assign one or more roles. Ensure my role is higher than the roles I'm trying to assign.", ephemeral=True)
+    except discord.HTTPException as http_err:
+        logger.error(f"HTTPException in /give_all_roles command: {http_err}")
+        await interaction.response.send_message(f"An HTTP error occurred: {http_err}.", ephemeral=True)
+    except discord.NotFound as not_found_err:
+        logger.error(f"NotFound error in /give_all_roles command: {not_found_err}")
+        await interaction.response.send_message("An error occurred because the bot could not find one of the necessary roles or users.", ephemeral=True)
+    except discord.InvalidArgument as invalid_arg_err:
+        logger.error(f"Invalid argument error in /give_all_roles command: {invalid_arg_err}")
+        await interaction.response.send_message("An invalid argument was provided. Ensure all inputs are valid.", ephemeral=True)
     except Exception as e:
-        logger.error(f"Error in /give_all_roles command: {e}")
-        await interaction.response.send_message("An error occurred while assigning the roles.", ephemeral=True)
+        logger.error(f"General error in /give_all_roles command: {e}")
+        await interaction.response.send_message(f"An unexpected error occurred: {e}.", ephemeral=True)
 
 # Handle unknown commands to reduce log noise
 @bot.event
