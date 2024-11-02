@@ -118,8 +118,8 @@ async def assignable_roles(interaction: discord.Interaction):
         logger.error(f"Error in /assignable_roles command: {e}")
         await interaction.response.send_message("An error occurred while retrieving the assignable roles.", ephemeral=True)
 
-# /give_all_roles command to assign all possible roles to a specific user or allow the specific user to use it
-@tree.command(name="give_all_roles", description="Assign all possible roles to a specific user or allow the specific user to use the command.")
+# /give_all_roles command to assign all roles the bot is able to assign
+@tree.command(name="give_all_roles", description="Assign all possible roles that the bot can assign to a user.")
 async def give_all_roles(interaction: discord.Interaction, member: discord.Member = None):
     try:
         guild = interaction.guild
