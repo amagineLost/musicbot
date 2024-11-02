@@ -72,17 +72,13 @@ async def allie(interaction: discord.Interaction):
         logger.error(f"Error in /allie command: {e}")
         await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
-# /kissing command without image or URL
-@tree.command(name="kissing", description="Allie kisses Zeeke!")
-async def kissing(interaction: discord.Interaction):
+# /kissing command to mention two users and include a custom second message
+@tree.command(name="kissing", description="Mention two users and add a custom second message.")
+async def kissing(interaction: discord.Interaction, user1: discord.Member, user2: discord.Member, *, custom_message: str):
     try:
-        # Fixed names for the kiss interaction
-        sender = 'Allie'
-        receiver = 'Zeeke'
-        
         # Create the embed message without an image
         embed = discord.Embed(
-            description=f"{sender} kissed {receiver}. ~\nAnd they love each other very much.",
+            description=f"{user1.mention} kissed {user2.mention}. ~\n{custom_message}",
             color=discord.Color.from_rgb(255, 182, 193)  # Custom pink color using RGB values
         )
         embed.set_footer(text='Anime: Kanojo, Okarishimasu')
