@@ -139,4 +139,23 @@ async def on_message_edit(before, after):
                 title="Message Edited",
                 color=discord.Color.blue()
             )
-            embed.add_field(nam
+            embed.add_field(name="Before", value=before.content, inline=False)
+            embed.add_field(name="After", value=after.content, inline=False)
+            embed.set_footer(text=f"Edited by {before.author.display_name} in #{before.channel}")
+            await log_channel.send(embed=embed)
+        except discord.Forbidden:
+            logger.error("Bot does not have permission to send messages in the log channel.")
+        except Exception as e:
+            logger.error(f"Error sending edited message log: {e}")
+
+# Log when the bot is ready
+@bot.event
+async def on_ready():
+    logger.info(f'Logged in as {bot.user}')
+    await tree.sync()  # Ensure all application commands are synced
+
+# Run the bot with error handling
+try:
+    bot.run(DISCORD_TOKEN)
+except Exception as e:
+    logger.error(f"Error starting the bot: {e}")
