@@ -37,6 +37,15 @@ def has_restricted_roles():
         return False
     return app_commands.check(predicate)
 
+# Periodic task to auto-sync commands
+@tasks.loop(minutes=10)  # Adjust the interval as needed
+async def auto_sync_commands():
+    try:
+        synced = await tree.sync()
+        logger.info(f'Auto-sync completed. {len(synced)} commands synced.')
+    except Exception as e:
+        logger.error(f"Error during periodic command sync: {e}")
+
 # /ping command to check bot latency
 @tree.command(name="ping", description="Check the bot's latency.")
 async def ping(interaction: discord.Interaction):
@@ -154,11 +163,18 @@ async def on_message_edit(before, after):
         except Exception as e:
             logger.error(f"Error sending edited message log: {e}")
 
-# Log when the bot is ready
+# Log when the bot is ready and start the periodic sync
 @bot.event
 async def on_ready():
+    try:
+        synced = await tree.sync()  # Ensure all application commands are synced
+        logger.info(f'Initial sync completed. {len(synced)} commands synced.')
+    except Exception as e:
+        logger.error(f"Error during initial command sync: {e}")
+    
+    if not auto_sync_commands.is_running():
+        auto_sync_commands.start()  # Start the loop for periodic command syncing
     logger.info(f'Logged in as {bot.user}')
-    await tree.sync()  # Ensure all application commands are synced
 
 # Run the bot with error handling
 try:
