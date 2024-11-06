@@ -72,7 +72,7 @@ def has_restricted_roles():
     return app_commands.check(predicate)
 
 # Periodic task to auto-sync commands
-@tasks.loop(minutes=15)  # Adjusted the interval to 15 minutes
+@tasks.loop(minutes=15)
 async def auto_sync_commands():
     try:
         synced = await tree.sync()
@@ -140,28 +140,30 @@ async def send_message(interaction: discord.Interaction, channel: discord.TextCh
         await interaction.response.send_message("You're using this command too frequently. Please wait a bit.", ephemeral=True)
         return
     try:
+        await interaction.response.defer(ephemeral=True)
         await channel.send(message)
         embed = discord.Embed(
             title="Message Sent",
             description=f"Message sent to {channel.mention}",
             color=discord.Color.blue()
         )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
         logger.info(f"Sent message to {channel.name} by {interaction.user.name}")
     except discord.Forbidden:
         logger.error("Bot does not have permission to send messages to the specified channel.")
-        await interaction.response.send_message("I do not have permission to send messages to that channel.", ephemeral=True)
+        await interaction.followup.send("I do not have permission to send messages to that channel.", ephemeral=True)
     except discord.HTTPException as e:
         logger.error(f"HTTPException in /send_message command: {e}")
-        await interaction.response.send_message(f"An error occurred while sending the message: {e}", ephemeral=True)
+        await interaction.followup.send(f"An error occurred while sending the message: {e}", ephemeral=True)
     except Exception as e:
         logger.error(f"General error in /send_message command: {traceback.format_exc()}")
-        await interaction.response.send_message("An unexpected error occurred.", ephemeral=True)
+        await interaction.followup.send("An unexpected error occurred.", ephemeral=True)
 
 # /allie command with a detailed paragraph
 @tree.command(name="allie", description="Explain why Allie and Cole Walters should be together.")
 async def allie(interaction: discord.Interaction):
     try:
+        await interaction.response.defer()
         paragraph = (
             "Allie and Cole Walters from 'My Life with the Walter Boys' share an undeniable chemistry that "
             "captures the essence of young, unexpected love. Cole’s charming and adventurous nature complements "
@@ -177,10 +179,32 @@ async def allie(interaction: discord.Interaction):
             description=paragraph,
             color=discord.Color.purple()
         )
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.followup.send(embed=embed)
     except Exception as e:
         logger.error(f"Error in /allie command: {traceback.format_exc()}")
-        await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
+        await interaction.followup.send("An error occurred while generating the message.", ephemeral=True)
+
+# /kissing command to mention two users with a custom message
+@tree.command(name="kissing", description="Mention two users and add a custom second message.")
+async def kissing(interaction: discord.Interaction, user1: discord.Member, user2: discord.Member, *, custom_message: str):
+    try:
+        await interaction.response.defer()
+        embed = discord.Embed(
+            description=f"{user1.mention} kissed {user2.mention}. ~\n{custom_message}",
+            color=discord.Color.from_rgb(255, 182, 193)  # Custom pink color using RGB values
+        )
+        embed.set_footer(text='Anime: Kanojo, Okarishimasu')
+        await interaction.followup.send(embed=embed)
+        logger.info(f"Kissing command used by {interaction.user.name} for {user1.name} and {user2.name}")
+    except discord.Forbidden:
+        logger.error("Bot does not have permission to send the embed message.")
+        await interaction.followup.send("I do not have permission to send the embed message.", ephemeral=True)
+    except discord.HTTPException as e:
+        logger.error(f"HTTPException in /kissing command: {e}")
+        await interaction.followup.send(f"An error occurred while sending the embed message: {e}", ephemeral=True)
+    except Exception as e:
+        logger.error(f"General error in /kissing command: {traceback.format_exc()}")
+        await interaction.followup.send("An unexpected error occurred while generating the message.", ephemeral=True)
 
 # Event handler for deleted messages with embeds
 @bot.event
