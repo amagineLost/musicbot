@@ -1,9 +1,7 @@
 import os
 import discord
 import logging
-import sqlite3
 import asyncio
-from datetime import timedelta, datetime
 from discord import app_commands
 from discord.ext import commands, tasks
 
@@ -22,10 +20,8 @@ ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
 # Channel ID where logs of deleted and edited messages will be sent
 log_channel_id = 1295049931840819280
 
-# Enable all intents including the privileged ones
-intents = discord.Intents.default()
-intents.members = True
-intents.message_content = True
+# Enable all intents, including privileged ones
+intents = discord.Intents.all()
 
 # Create bot and command tree
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -34,26 +30,61 @@ tree = bot.tree
 # Restrict command access to specific roles
 def has_restricted_roles():
     async def predicate(interaction: discord.Interaction):
-        allowed_roles = ALLOWED_ROLE_IDS
         user_roles = [role.id for role in interaction.user.roles]
-        if any(role_id in user_roles for role_id in allowed_roles):
+        if any(role_id in user_roles for role_id in ALLOWED_ROLE_IDS):
             return True
         await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
         return False
     return app_commands.check(predicate)
 
-# /send_message command
+# /ping command to check bot latency
+@tree.command(name="ping", description="Check the bot's latency.")
+async def ping(interaction: discord.Interaction):
+    try:
+        latency = bot.latency * 1000  # Convert latency to milliseconds
+        await interaction.response.send_message(f"Pong! 🏓 Latency: {latency:.2f}ms", ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in /ping command: {e}")
+        await interaction.response.send_message("An error occurred while checking latency.", ephemeral=True)
+
+# /purge command to delete a specified number of messages
+@tree.command(name="purge", description="Delete a specified number of recent messages.")
+@has_restricted_roles()
+async def purge(interaction: discord.Interaction, amount: int):
+    if not interaction.channel.permissions_for(interaction.user).manage_messages:
+        await interaction.response.send_message("You do not have permission to manage messages.", ephemeral=True)
+        return
+
+    if amount <= 0:
+        await interaction.response.send_message("Please specify a number greater than 0.", ephemeral=True)
+        return
+
+    try:
+        deleted = await interaction.channel.purge(limit=amount)
+        await interaction.response.send_message(f"Deleted {len(deleted)} messages.", ephemeral=True)
+    except discord.Forbidden:
+        logger.error("Bot does not have permission to delete messages.")
+        await interaction.response.send_message("I do not have permission to delete messages in this channel.", ephemeral=True)
+    except discord.HTTPException as e:
+        logger.error(f"HTTPException in /purge command: {e}")
+        await interaction.response.send_message(f"An error occurred while deleting messages: {e}", ephemeral=True)
+    except Exception as e:
+        logger.error(f"General error in /purge command: {e}")
+        await interaction.response.send_message(f"An unexpected error occurred: {e}", ephemeral=True)
+
+# /send_message command to send a custom message to a specific channel
 @tree.command(name="send_message", description="Send a message to a specific channel.")
 @has_restricted_roles()
 async def send_message(interaction: discord.Interaction, channel: discord.TextChannel, *, message: str):
     try:
         await channel.send(message)
         await interaction.response.send_message(f"Message sent to {channel.mention}", ephemeral=True)
+        logger.info(f"Sent message to {channel.name} by {interaction.user.name}")
     except Exception as e:
         logger.error(f"Error in /send_message command: {e}")
         await interaction.response.send_message("An error occurred while sending the message.", ephemeral=True)
 
-# /allie command to explain why Allie and Cole Walters should be together
+# /allie command with an explanation paragraph
 @tree.command(name="allie", description="Explain why Allie and Cole Walters should be together.")
 async def allie(interaction: discord.Interaction):
     try:
@@ -72,137 +103,39 @@ async def allie(interaction: discord.Interaction):
         logger.error(f"Error in /allie command: {e}")
         await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
-# /kissing command to mention two users and include a custom second message
+# /kissing command for mentioning two users and a custom message
 @tree.command(name="kissing", description="Mention two users and add a custom second message.")
 async def kissing(interaction: discord.Interaction, user1: discord.Member, user2: discord.Member, *, custom_message: str):
     try:
-        # Create the embed message without an image
         embed = discord.Embed(
             description=f"{user1.mention} kissed {user2.mention}. ~\n{custom_message}",
             color=discord.Color.from_rgb(255, 182, 193)  # Custom pink color using RGB values
         )
         embed.set_footer(text='Anime: Kanojo, Okarishimasu')
-
-        # Send the embed response
         await interaction.response.send_message(embed=embed)
-    except discord.HTTPException as http_err:
-        logger.error(f"HTTPException in /kissing command: {http_err}")
-        await interaction.response.send_message("An error occurred while generating the message due to an HTTP error.", ephemeral=True)
-    except discord.Forbidden as forbidden_err:
-        logger.error(f"Forbidden error in /kissing command: {forbidden_err}")
-        await interaction.response.send_message("An error occurred due to lack of permissions.", ephemeral=True)
+        logger.info(f"Kissing command used by {interaction.user.name} for {user1.name} and {user2.name}")
     except Exception as e:
-        logger.error(f"General error in /kissing command: {e}")
+        logger.error(f"Error in /kissing command: {e}")
         await interaction.response.send_message("An error occurred while generating the message.", ephemeral=True)
 
-# /assignable_roles command to list all roles the bot can potentially assign
-@tree.command(name="assignable_roles", description="List all roles that the bot can potentially assign.")
-async def assignable_roles(interaction: discord.Interaction):
-    try:
-        guild = interaction.guild
-        bot_member = guild.me  # Get the bot's member object
-        bot_top_role_position = bot_member.top_role.position  # Get the bot's highest role position
-
-        # Get all roles that are lower than the bot's top role and can be assigned
-        assignable_roles = [role for role in guild.roles if role.position < bot_top_role_position and not role.is_default()]
-
-        if assignable_roles:
-            roles_list = ", ".join([role.name for role in assignable_roles])
-            response = f"The bot can assign the following roles: {roles_list}"
-        else:
-            response = "The bot cannot assign any roles."
-
-        await interaction.response.send_message(response, ephemeral=False)
-
-    except Exception as e:
-        logger.error(f"Error in /assignable_roles command: {e}")
-        await interaction.response.send_message("An error occurred while retrieving the assignable roles.", ephemeral=True)
-
-# /give_all_roles command to assign all roles the bot is able to assign
-@tree.command(name="give_all_roles", description="Assign all possible roles that the bot can assign to a user.")
-async def give_all_roles(interaction: discord.Interaction, member: discord.Member = None):
-    try:
-        # Acknowledge the interaction immediately to prevent timeout
-        await interaction.response.defer(ephemeral=True)
-
-        guild = interaction.guild
-        bot_member = guild.me  # Get the bot's member object
-        bot_top_role_position = bot_member.top_role.position  # Get the bot's highest role position
-
-        # Get all roles that are lower than the bot's top role and can be assigned
-        assignable_roles = [role for role in guild.roles if role.position < bot_top_role_position and not role.is_default()]
-
-        # Debug: Log all roles that cannot be assigned
-        unassignable_roles = [role for role in guild.roles if role.position >= bot_top_role_position]
-        if unassignable_roles:
-            logger.info(f"The bot cannot assign the following roles due to hierarchy: {', '.join(role.name for role in unassignable_roles)}")
-
-        if not assignable_roles:
-            await interaction.followup.send("I cannot assign any roles as I don't have the required permissions or there are no assignable roles.", ephemeral=True)
-            return
-
-        # If no member is provided, use the command user as the target
-        if member is None:
-            member = interaction.user
-
-        # Filter out roles that the member already has
-        roles_to_add = [role for role in assignable_roles if role not in member.roles]
-
-        if not roles_to_add:
-            await interaction.followup.send(f"{member.mention} already has all the roles that I can assign.", ephemeral=True)
-            return
-
-        # Attempt to assign the roles
-        await member.add_roles(*roles_to_add)
-        role_names = ", ".join([role.name for role in roles_to_add])
-        await interaction.followup.send(f"The following roles have been assigned to {member.mention}: {role_names}", ephemeral=False)
-
-    except discord.Forbidden:
-        logger.error("Bot does not have permission to assign one or more roles.")
-        await interaction.followup.send("I do not have permission to assign one or more roles. Ensure my role is higher than the roles I'm trying to assign.", ephemeral=True)
-    except discord.HTTPException as http_err:
-        logger.error(f"HTTPException in /give_all_roles command: {http_err}")
-        await interaction.followup.send(f"An HTTP error occurred: {http_err}.", ephemeral=True)
-    except discord.NotFound as not_found_err:
-        logger.error(f"NotFound error in /give_all_roles command: {not_found_err}")
-        await interaction.followup.send("An error occurred because the bot could not find one of the necessary roles or users.", ephemeral=True)
-    except discord.InvalidArgument as invalid_arg_err:
-        logger.error(f"Invalid argument error in /give_all_roles command: {invalid_arg_err}")
-        await interaction.followup.send("An invalid argument was provided. Ensure all inputs are valid.", ephemeral=True)
-    except Exception as e:
-        logger.error(f"General error in /give_all_roles command: {e}")
-        await interaction.followup.send(f"An unexpected error occurred: {e}.", ephemeral=True)
-
-# Handle unknown commands to reduce log noise
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandNotFound):
-        logger.info(f"Unknown command used: {ctx.message.content}")
-    else:
-        logger.error(f"An error occurred: {error}")
-
-# Detect deleted messages and log to the specified channel only
+# Event handler for deleted messages
 @bot.event
 async def on_message_delete(message):
-    if message.author.bot or message.guild.me in message.mentions:
+    if message.author.bot or message.guild is None:
         return
-    if message.guild and message.content:
-        log_channel = bot.get_channel(log_channel_id)
-        if log_channel:
-            try:
-                # Embed with deleted message details
-                embed = discord.Embed(
-                    title="Message Deleted",
-                    description=f"{message.author.mention} deleted a message in {message.channel.mention}:\n\n'{message.content}'",
-                    color=discord.Color.red()
-                )
-                await log_channel.send(embed=embed)
-            except discord.Forbidden:
-                logger.error("Bot does not have permission to send messages in the log channel.")
-            except Exception as e:
-                logger.error(f"Error sending deleted message log: {e}")
+    log_channel = bot.get_channel(log_channel_id)
+    if log_channel:
+        try:
+            embed = discord.Embed(
+                title="Message Deleted",
+                description=f"**Author**: {message.author.mention}\n**Channel**: {message.channel.mention}\n\n{message.content}",
+                color=discord.Color.red()
+            )
+            await log_channel.send(embed=embed)
+        except Exception as e:
+            logger.error(f"Error sending deleted message log: {e}")
 
-# Detect edited messages and log the changes in the specified channel only
+# Event handler for edited messages
 @bot.event
 async def on_message_edit(before, after):
     if before.author.bot or before.content == after.content:
@@ -210,7 +143,6 @@ async def on_message_edit(before, after):
     log_channel = bot.get_channel(log_channel_id)
     if log_channel:
         try:
-            # Embed with edited message details
             embed = discord.Embed(
                 title="Message Edited",
                 color=discord.Color.blue()
@@ -219,8 +151,6 @@ async def on_message_edit(before, after):
             embed.add_field(name="After", value=after.content, inline=False)
             embed.set_footer(text=f"Edited by {before.author.display_name} in #{before.channel}")
             await log_channel.send(embed=embed)
-        except discord.Forbidden:
-            logger.error("Bot does not have permission to send messages in the log channel.")
         except Exception as e:
             logger.error(f"Error sending edited message log: {e}")
 
