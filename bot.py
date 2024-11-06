@@ -38,6 +38,9 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
+# Remove the default help command
+bot.remove_command('help')
+
 # Helper function for rate limiting
 command_usage = {}
 
