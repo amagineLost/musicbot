@@ -206,23 +206,40 @@ async def kissing(interaction: discord.Interaction, user1: discord.Member, user2
         logger.error(f"General error in /kissing command: {traceback.format_exc()}")
         await interaction.followup.send("An unexpected error occurred while generating the message.", ephemeral=True)
 
-# Event handler for deleted messages with embeds
+# Event handler for deleted messages with embeds and audit log lookup
 @bot.event
 async def on_message_delete(message):
     if message.author.bot or message.guild is None:
         return
+
     log_channel = bot.get_channel(log_channel_id)
     if log_channel:
+        deleter = "Unknown"
         try:
+            # Fetch the audit logs to find who deleted the message
+            async for entry in message.guild.audit_logs(action=discord.AuditLogAction.message_delete, limit=1):
+                if entry.target.id == message.author.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+                    deleter = entry.user.mention
+                    break
+
+            # Embed with detailed deletion information
             embed = discord.Embed(
                 title="Message Deleted",
-                description=f"**Author**: {message.author.mention}\n**Channel**: {message.channel.mention}\n\n{message.content}",
                 color=discord.Color.red()
             )
+            embed.add_field(name="Author", value=message.author.mention, inline=True)
+            embed.add_field(name="Channel", value=message.channel.mention, inline=True)
+            embed.add_field(name="Deleted by", value=deleter, inline=True)
+            embed.add_field(name="Content", value=message.content or "No content", inline=False)
+
             await log_channel.send(embed=embed)
-            logger.info(f"Logged deleted message from {message.author.name} in {message.channel.name}")
+            logger.info(f"Logged deleted message from {message.author} in {message.channel}, deleted by {deleter}")
+
+        except discord.Forbidden:
+            logger.error("Bot does not have permission to view audit logs.")
+            await log_channel.send("Error: I do not have permission to view audit logs to detect the message deleter.")
         except Exception as e:
-            logger.error(f"Error sending deleted message log: {traceback.format_exc()}")
+            logger.error(f"Error in on_message_delete: {traceback.format_exc()}")
 
 # Event handler for edited messages with improved checking
 @bot.event
