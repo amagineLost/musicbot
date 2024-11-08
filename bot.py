@@ -26,7 +26,7 @@ if not DISCORD_TOKEN:
 ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
 
 # Channel IDs
-log_channel_id = 1295049931840819280
+log_channel_id = 1295049931840819280  # Channel for logging deleted/edited messages
 guess_channel_id = 1304587760161656894  # Channel for the guessing game
 
 # Generate a random number between 1 and 10,000 for the guessing game
@@ -241,6 +241,11 @@ async def on_message_delete(message):
                     deleter = entry.user.mention
                     break
 
+            # Truncate the message content to 1024 characters if it's too long
+            message_content = message.content or "No content"
+            if len(message_content) > 1024:
+                message_content = message_content[:1021] + "..."
+
             # Embed with detailed deletion information
             embed = discord.Embed(
                 title="Message Deleted",
@@ -249,7 +254,7 @@ async def on_message_delete(message):
             embed.add_field(name="Author", value=message.author.mention, inline=True)
             embed.add_field(name="Channel", value=message.channel.mention, inline=True)
             embed.add_field(name="Deleted by", value=deleter, inline=True)
-            embed.add_field(name="Content", value=message.content or "No content", inline=False)
+            embed.add_field(name="Content", value=message_content, inline=False)
 
             await log_channel.send(embed=embed)
             logger.info(f"Logged deleted message from {message.author} in {message.channel}, deleted by {deleter}")
