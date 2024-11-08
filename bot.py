@@ -89,6 +89,8 @@ async def auto_sync_commands():
 # Guessing game functionality
 @bot.event
 async def on_message(message):
+    global target_number  # Declare target_number as global at the start of the function
+
     # Avoid handling messages from bots
     if message.author.bot:
         return
@@ -108,7 +110,6 @@ async def on_message(message):
                 await message.channel.send(f"{message.author.mention} has guessed the correct number and won the game!")
                 
                 # Reset the target number for the next round
-                global target_number
                 target_number = random.randint(1, 10000)
                 logger.info(f"New target number set for guessing game: {target_number}")
             else:
