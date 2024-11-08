@@ -2,6 +2,7 @@ import os
 import discord
 import logging
 import traceback
+import random
 from discord import app_commands
 from discord.ext import commands, tasks
 
@@ -24,8 +25,13 @@ if not DISCORD_TOKEN:
 # Role IDs for restricted commands
 ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
 
-# Channel ID where logs of deleted and edited messages will be sent
+# Channel IDs
 log_channel_id = 1295049931840819280
+guess_channel_id = 1304587760161656894  # Channel for the guessing game
+
+# Generate a random number between 1 and 10,000 for the guessing game
+target_number = random.randint(1, 10000)
+logger.info(f"Target number for guessing game set to: {target_number}")
 
 # Enable all intents, including privileged ones
 intents = discord.Intents.default()
@@ -79,6 +85,41 @@ async def auto_sync_commands():
         logger.info(f'Auto-sync completed. {len(synced)} commands synced.')
     except Exception as e:
         logger.error(f"Error during periodic command sync: {traceback.format_exc()}")
+
+# Guessing game functionality
+@bot.event
+async def on_message(message):
+    # Avoid handling messages from bots
+    if message.author.bot:
+        return
+
+    # Check if the message is in the specified guessing channel
+    if message.channel.id == guess_channel_id:
+        try:
+            # Convert the message content to an integer
+            guess = int(message.content)
+            
+            # Check if the guess matches the target number
+            if guess == target_number:
+                # Send a DM to the user with the specific message
+                await message.author.send(f"Congratulations! 🎉 You guessed the correct number: {target_number}. You've won!")
+                
+                # Announce the winner in the channel
+                await message.channel.send(f"{message.author.mention} has guessed the correct number and won the game!")
+                
+                # Reset the target number for the next round
+                global target_number
+                target_number = random.randint(1, 10000)
+                logger.info(f"New target number set for guessing game: {target_number}")
+            else:
+                await message.add_reaction("❌")  # Indicate an incorrect guess
+            
+        except ValueError:
+            # Ignore non-integer messages
+            pass
+
+    # Process other bot commands or events
+    await bot.process_commands(message)
 
 # /ping command to check bot latency
 @tree.command(name="ping", description="Check the bot's latency.")
@@ -183,28 +224,6 @@ async def allie(interaction: discord.Interaction):
     except Exception as e:
         logger.error(f"Error in /allie command: {traceback.format_exc()}")
         await interaction.followup.send("An error occurred while generating the message.", ephemeral=True)
-
-# /kissing command to mention two users with a custom message
-@tree.command(name="kissing", description="Mention two users and add a custom second message.")
-async def kissing(interaction: discord.Interaction, user1: discord.Member, user2: discord.Member, *, custom_message: str):
-    try:
-        await interaction.response.defer()
-        embed = discord.Embed(
-            description=f"{user1.mention} kissed {user2.mention}. ~\n{custom_message}",
-            color=discord.Color.from_rgb(255, 182, 193)  # Custom pink color using RGB values
-        )
-        embed.set_footer(text='Anime: Kanojo, Okarishimasu')
-        await interaction.followup.send(embed=embed)
-        logger.info(f"Kissing command used by {interaction.user.name} for {user1.name} and {user2.name}")
-    except discord.Forbidden:
-        logger.error("Bot does not have permission to send the embed message.")
-        await interaction.followup.send("I do not have permission to send the embed message.", ephemeral=True)
-    except discord.HTTPException as e:
-        logger.error(f"HTTPException in /kissing command: {e}")
-        await interaction.followup.send(f"An error occurred while sending the embed message: {e}", ephemeral=True)
-    except Exception as e:
-        logger.error(f"General error in /kissing command: {traceback.format_exc()}")
-        await interaction.followup.send("An unexpected error occurred while generating the message.", ephemeral=True)
 
 # Event handler for deleted messages with embeds and audit log lookup
 @bot.event
