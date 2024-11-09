@@ -29,8 +29,8 @@ ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
 log_channel_id = 1295049931840819280  # Channel for logging deleted/edited messages
 guess_channel_id = 1304587760161656894  # Channel for the guessing game
 
-# Generate a random number between 1 and 10,000 for the guessing game
-target_number = random.randint(1, 10000)
+# Generate a random number between 1 and 1,000 for the guessing game
+target_number = random.randint(1, 1000)
 logger.info(f"Target number for guessing game set to: {target_number}")
 
 # Enable all intents, including privileged ones
@@ -109,8 +109,8 @@ async def on_message(message):
                 # Announce the winner in the channel
                 await message.channel.send(f"{message.author.mention} has guessed the correct number and won the game!")
                 
-                # Reset the target number for the next round
-                target_number = random.randint(1, 10000)
+                # Reset the target number for the next round (new range from 1 to 1,000)
+                target_number = random.randint(1, 1000)
                 logger.info(f"New target number set for guessing game: {target_number}")
             else:
                 await message.add_reaction("❌")  # Indicate an incorrect guess
@@ -172,33 +172,6 @@ async def purge(interaction: discord.Interaction, amount: int):
         await interaction.followup.send(f"An error occurred while deleting messages: {e}", ephemeral=True)
     except Exception as e:
         logger.error(f"General error in /purge command: {traceback.format_exc()}")
-        await interaction.followup.send("An unexpected error occurred.", ephemeral=True)
-
-# /send_message command with rate limiter
-@tree.command(name="send_message", description="Send a message to a specific channel.")
-@has_restricted_roles()
-async def send_message(interaction: discord.Interaction, channel: discord.TextChannel, *, message: str):
-    if not rate_limit_check(interaction.user.id, 'send_message'):
-        await interaction.response.send_message("You're using this command too frequently. Please wait a bit.", ephemeral=True)
-        return
-    try:
-        await interaction.response.defer(ephemeral=True)
-        await channel.send(message)
-        embed = discord.Embed(
-            title="Message Sent",
-            description=f"Message sent to {channel.mention}",
-            color=discord.Color.blue()
-        )
-        await interaction.followup.send(embed=embed, ephemeral=True)
-        logger.info(f"Sent message to {channel.name} by {interaction.user.name}")
-    except discord.Forbidden:
-        logger.error("Bot does not have permission to send messages to the specified channel.")
-        await interaction.followup.send("I do not have permission to send messages to that channel.", ephemeral=True)
-    except discord.HTTPException as e:
-        logger.error(f"HTTPException in /send_message command: {e}")
-        await interaction.followup.send(f"An error occurred while sending the message: {e}", ephemeral=True)
-    except Exception as e:
-        logger.error(f"General error in /send_message command: {traceback.format_exc()}")
         await interaction.followup.send("An unexpected error occurred.", ephemeral=True)
 
 # /allie command with a detailed paragraph
