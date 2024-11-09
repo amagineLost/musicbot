@@ -27,7 +27,7 @@ ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
 
 # Channel IDs
 log_channel_id = 1295049931840819280  # Channel for logging deleted/edited messages
-guess_channel_id = 1304622005756100689  # Channel for the guessing game
+guess_channel_id = 1304587760161656894  # Channel for the guessing game
 
 # Generate a random number between 1 and 1,000 for the guessing game
 target_number = random.randint(1, 1000)
@@ -198,6 +198,26 @@ async def allie(interaction: discord.Interaction):
     except Exception as e:
         logger.error(f"Error in /allie command: {traceback.format_exc()}")
         await interaction.followup.send("An error occurred while generating the message.", ephemeral=True)
+
+# DM command restricted to a specific user
+@tree.command(name="dm", description="Send a private message to a specific user.")
+async def dm(interaction: discord.Interaction, user: discord.User, *, message: str):
+    # Check if the command user is the allowed user
+    if interaction.user.id != 713290565835554839:
+        await interaction.response.send_message("You do not have permission to use this command.", ephemeral=True)
+        return
+
+    # Try to send a DM to the specified user
+    try:
+        await user.send(message)  # Send the message to the specified user
+        await interaction.response.send_message(f"Message sent to {user.display_name}.", ephemeral=True)
+        logger.info(f"/dm command used by {interaction.user.name} to send a DM to {user.name}.")
+    except discord.Forbidden:
+        logger.error("Bot cannot send a DM to the specified user.")
+        await interaction.response.send_message("I cannot send a DM to this user. They may have DMs disabled.", ephemeral=True)
+    except Exception as e:
+        logger.error(f"Error in /dm command: {traceback.format_exc()}")
+        await interaction.response.send_message("An unexpected error occurred while sending the message.", ephemeral=True)
 
 # Event handler for deleted messages with embeds and audit log lookup
 @bot.event
