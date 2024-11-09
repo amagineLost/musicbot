@@ -199,6 +199,46 @@ async def allie(interaction: discord.Interaction):
         logger.error(f"Error in /allie command: {traceback.format_exc()}")
         await interaction.followup.send("An error occurred while generating the message.", ephemeral=True)
 
+# /send_message command with rate limiter
+@tree.command(name="send_message", description="Send a message to a specific channel.")
+@has_restricted_roles()
+async def send_message(interaction: discord.Interaction, channel: discord.TextChannel, *, message: str):
+    if not rate_limit_check(interaction.user.id, 'send_message'):
+        await interaction.response.send_message("You're using this command too frequently. Please wait a bit.", ephemeral=True)
+        return
+    try:
+        await interaction.response.defer(ephemeral=True)
+        await channel.send(message)
+        embed = discord.Embed(
+            title="Message Sent",
+            description=f"Message sent to {channel.mention}",
+            color=discord.Color.blue()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        logger.info(f"Sent message to {channel.name} by {interaction.user.name}")
+    except discord.Forbidden:
+        logger.error("Bot does not have permission to send messages to the specified channel.")
+        await interaction.followup.send("I do not have permission to send messages to that channel.", ephemeral=True)
+    except discord.HTTPException as e:
+        logger.error(f"HTTPException in /send_message command: {e}")
+        await interaction.followup.send(f"An error occurred while sending the message: {e}", ephemeral=True)
+    except Exception as e:
+        logger.error(f"General error in /send_message command: {traceback.format_exc()}")
+        await interaction.followup.send("An unexpected error occurred.", ephemeral=True)
+
+# /kissing command to send a fun kissing message between two users
+@tree.command(name="kissing", description="Send a fun kissing message between two users.")
+async def kissing(interaction: discord.Interaction, user1: discord.User, user2: discord.User):
+    try:
+        await interaction.response.send_message(
+            f"{user1.mention} and {user2.mention} are sharing a sweet kiss! 💋", 
+            ephemeral=False
+        )
+        logger.info(f"Kissing command used to kiss {user1.name} and {user2.name}")
+    except Exception as e:
+        logger.error(f"Error in /kissing command: {traceback.format_exc()}")
+        await interaction.response.send_message("An unexpected error occurred while processing the kissing command.", ephemeral=True)
+
 # DM command restricted to a specific user
 @tree.command(name="dm", description="Send a private message to a specific user.")
 async def dm(interaction: discord.Interaction, user: discord.User, *, message: str):
