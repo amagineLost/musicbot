@@ -27,7 +27,7 @@ ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
 
 # Channel IDs
 log_channel_id = 1295049931840819280  # Channel for logging deleted/edited messages
-guess_channel_id = 1304587760161656894  # Channel for the guessing game
+guess_channel_id = 1304622005756100689  # Channel for the guessing game
 
 # Generate a random number between 1 and 1,000 for the guessing game
 target_number = random.randint(1, 1000)
