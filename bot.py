@@ -35,7 +35,7 @@ target_number = random.randint(1, 1000)
 logger.info(f"Target number for guessing game set to: {target_number}")
 
 # User ID to monitor for grammar and spelling
-monitored_user_id = 1072597565188620388
+monitored_user_id = 879401301526609972
 
 # Enable all intents, including privileged ones
 intents = discord.Intents.default()
@@ -117,13 +117,11 @@ async def on_message(message):
             corrections = []
             for match in matches:
                 corrections.append(f"**Mistake:** {match['context']['text']}")
-                corrections.append(f"**Suggestion:** {match['replacements'][0]['value'] if match['replacements'] else 'No suggestion'}")
+                corrections.append(f"**Correct Way:** {match['replacements'][0]['value'] if match['replacements'] else 'No suggestion'}")
             correction_message = "\n".join(corrections)
 
-            # Send a reply with corrections
-            await message.channel.send(
-                f"Hey {message.author.mention}, here’s a grammar and spelling check on your message:\n\n{correction_message}"
-            )
+            # Send only the corrections without any introductory text
+            await message.channel.send(correction_message)
 
     # Check if the message is in the specified guessing channel
     if message.channel.id == guess_channel_id:
