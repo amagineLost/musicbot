@@ -35,7 +35,7 @@ target_number = random.randint(1, 1000)
 logger.info(f"Target number for guessing game set to: {target_number}")
 
 # User ID to monitor for grammar and spelling
-monitored_user_id = 879401301526609972
+monitored_user_id = 1072597565188620388
 
 # Enable all intents, including privileged ones
 intents = discord.Intents.default()
