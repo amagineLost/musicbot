@@ -5,6 +5,7 @@ import traceback
 import random
 import requests
 import time
+import re
 from discord import app_commands
 from discord.ext import commands, tasks
 
@@ -40,11 +41,6 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 tree = bot.tree
 
-# Rate limit and command usage tracking for grammar checks
-grammar_check_usage = {}
-CHECK_LIMIT = 3  # Limit of grammar checks per user within interval
-CHECK_INTERVAL = 60  # Time interval in seconds for rate limiting
-
 command_usage = {}
 guessing_game_leaderboard = {}
 
@@ -67,19 +63,6 @@ def rate_limit_check(user_id, command_name, limit=5, interval=60):
     timestamps.append(current_time)
     return True, None
 
-def check_rate_limit(user_id):
-    current_time = time.time()
-    if user_id not in grammar_check_usage:
-        grammar_check_usage[user_id] = []
-    timestamps = grammar_check_usage[user_id]
-    timestamps = [t for t in timestamps if current_time - t < CHECK_INTERVAL]
-    grammar_check_usage[user_id] = timestamps
-
-    if len(timestamps) >= CHECK_LIMIT:
-        return False, int(CHECK_INTERVAL - (current_time - timestamps[0]))
-    timestamps.append(current_time)
-    return True, None
-
 def has_restricted_roles():
     async def predicate(interaction: discord.Interaction):
         user_roles = [role.id for role in interaction.user.roles]
@@ -97,6 +80,10 @@ async def auto_sync_commands():
     except Exception:
         logger.error(f"Error during periodic command sync: {traceback.format_exc()}")
 
+def is_word(text):
+    """ Check if text contains alphabetical characters, excluding symbols and emoticons. """
+    return bool(re.search(r'[a-zA-Z]', text))
+
 def advanced_grammar_check(text):
     url = "https://api.languagetool.org/v2/check"
     data = {"text": text, "language": "en-US"}
@@ -105,15 +92,17 @@ def advanced_grammar_check(text):
         response.raise_for_status()
         matches = response.json().get("matches", [])
         
-        # Format the response with detailed grammar and spell-check feedback
+        # Filter out corrections that aren't words (e.g., symbols, emoticons)
         corrections = []
         for match in matches:
-            error_type = match['rule']['issueType']
-            context = match['context']['text']
-            error_text = f"**Error Type:** {error_type.capitalize()}\n"
-            error_text += f"**Problem:** {context}\n"
-            error_text += f"**Suggested Correction:** {match['replacements'][0]['value'] if match['replacements'] else 'No suggestion'}"
-            corrections.append(error_text)
+            # Only include corrections if the text contains letters (ignoring symbols or emoticons)
+            if is_word(match['context']['text']):
+                error_type = match['rule']['issueType']
+                context = match['context']['text']
+                error_text = f"**Error Type:** {error_type.capitalize()}\n"
+                error_text += f"**Problem:** {context}\n"
+                error_text += f"**Suggested Correction:** {match['replacements'][0]['value'] if match['replacements'] else 'No suggestion'}"
+                corrections.append(error_text)
         
         return corrections
     except (requests.RequestException, ValueError):
@@ -129,11 +118,6 @@ async def on_message(message):
 
     # Only check for grammar for specific monitored users
     if message.author.id in monitored_user_ids:
-        allowed, retry_after = check_rate_limit(message.author.id)
-        if not allowed:
-            await message.channel.send(f"Please wait {retry_after} seconds before the next grammar check.")
-            return
-
         corrections = advanced_grammar_check(message.content)
         if corrections:
             feedback = "\n\n".join(corrections)
