@@ -3,7 +3,7 @@ import discord
 import logging
 import traceback
 import random
-import language_tool_python
+import requests
 from discord import app_commands
 from discord.ext import commands, tasks
 
@@ -23,9 +23,6 @@ DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 if not DISCORD_TOKEN:
     raise ValueError("DISCORD_TOKEN environment variable not set!")
 
-# Initialize the language tool for grammar and spelling checks
-tool = language_tool_python.LanguageTool('en-US')
-
 # Role IDs for restricted commands
 ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
 
@@ -38,7 +35,7 @@ target_number = random.randint(1, 1000)
 logger.info(f"Target number for guessing game set to: {target_number}")
 
 # User ID to monitor for grammar and spelling
-monitored_user_id = 879401301526609972
+monitored_user_id = 1153464189566865468
 
 # Enable all intents, including privileged ones
 intents = discord.Intents.default()
@@ -93,6 +90,17 @@ async def auto_sync_commands():
     except Exception as e:
         logger.error(f"Error during periodic command sync: {traceback.format_exc()}")
 
+# Function to check grammar using LanguageTool API
+def check_grammar(text):
+    url = "https://api.languagetool.org/v2/check"
+    data = {
+        "text": text,
+        "language": "en-US"
+    }
+    response = requests.post(url, data=data)
+    matches = response.json().get("matches", [])
+    return matches
+
 # Grammar and spelling check for specific user
 @bot.event
 async def on_message(message):
@@ -104,12 +112,12 @@ async def on_message(message):
 
     # Check for grammar and spelling if the message author is the monitored user
     if message.author.id == monitored_user_id:
-        matches = tool.check(message.content)
+        matches = check_grammar(message.content)
         if matches:
             corrections = []
             for match in matches:
-                corrections.append(f"**Mistake:** {match.context}")
-                corrections.append(f"**Suggestion:** {match.replacements[0] if match.replacements else 'No suggestion'}")
+                corrections.append(f"**Mistake:** {match['context']['text']}")
+                corrections.append(f"**Suggestion:** {match['replacements'][0]['value'] if match['replacements'] else 'No suggestion'}")
             correction_message = "\n".join(corrections)
 
             # Send a reply with corrections
@@ -280,74 +288,6 @@ async def dm(interaction: discord.Interaction, user: discord.User, *, message: s
     except Exception as e:
         logger.error(f"Error in /dm command: {traceback.format_exc()}")
         await interaction.response.send_message("An unexpected error occurred while sending the message.", ephemeral=True)
-
-# Event handler for deleted messages with embeds and audit log lookup
-@bot.event
-async def on_message_delete(message):
-    if message.author.bot or message.guild is None:
-        return
-
-    log_channel = bot.get_channel(log_channel_id)
-    if log_channel:
-        deleter = "Unknown"
-        try:
-            # Fetch the audit logs to find who deleted the message
-            async for entry in message.guild.audit_logs(action=discord.AuditLogAction.message_delete, limit=1):
-                if entry.target.id == message.author.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                    deleter = entry.user.mention
-                    break
-
-            # Truncate the message content to 1024 characters if it's too long
-            message_content = message.content or "No content"
-            if len(message_content) > 1024:
-                message_content = message_content[:1021] + "..."
-
-            # Embed with detailed deletion information
-            embed = discord.Embed(
-                title="Message Deleted",
-                color=discord.Color.red()
-            )
-            embed.add_field(name="Author", value=message.author.mention, inline=True)
-            embed.add_field(name="Channel", value=message.channel.mention, inline=True)
-            embed.add_field(name="Deleted by", value=deleter, inline=True)
-            embed.add_field(name="Content", value=message_content, inline=False)
-
-            await log_channel.send(embed=embed)
-            logger.info(f"Logged deleted message from {message.author} in {message.channel}, deleted by {deleter}")
-
-        except discord.Forbidden:
-            logger.error("Bot does not have permission to view audit logs.")
-            await log_channel.send("Error: I do not have permission to view audit logs to detect the message deleter.")
-        except Exception as e:
-            logger.error(f"Error in on_message_delete: {traceback.format_exc()}")
-
-# Event handler for edited messages with improved checking
-@bot.event
-async def on_message_edit(before, after):
-    if before.author.bot or before.content.strip() == after.content.strip():
-        return
-    log_channel = bot.get_channel(log_channel_id)
-    if log_channel:
-        try:
-            embed = discord.Embed(
-                title="Message Edited",
-                color=discord.Color.blue()
-            )
-            embed.add_field(name="Before", value=before.content[:1024] or "Empty", inline=False)
-            embed.add_field(name="After", value=after.content[:1024] or "Empty", inline=False)
-            embed.set_footer(text=f"Edited by {before.author.display_name} in #{before.channel}")
-            await log_channel.send(embed=embed)
-            logger.info(f"Logged edited message by {before.author.name} in {before.channel.name}")
-        except Exception as e:
-            logger.error(f"Error sending edited message log: {traceback.format_exc()}")
-
-# Custom help command
-@bot.command()
-async def help(ctx):
-    embed = discord.Embed(title="Help", description="List of commands and their descriptions")
-    for command in bot.commands:
-        embed.add_field(name=f"/{command.name}", value=command.help or "No description", inline=False)
-    await ctx.send(embed=embed)
 
 # Log when the bot is ready and start the periodic sync
 @bot.event
