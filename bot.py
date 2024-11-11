@@ -3,6 +3,7 @@ import discord
 import logging
 import traceback
 import random
+import language_tool_python
 from discord import app_commands
 from discord.ext import commands, tasks
 
@@ -22,6 +23,9 @@ DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
 if not DISCORD_TOKEN:
     raise ValueError("DISCORD_TOKEN environment variable not set!")
 
+# Initialize the language tool for grammar and spelling checks
+tool = language_tool_python.LanguageTool('en-US')
+
 # Role IDs for restricted commands
 ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
 
@@ -32,6 +36,9 @@ guess_channel_id = 1304587760161656894  # Channel for the guessing game
 # Generate a random number between 1 and 1,000 for the guessing game
 target_number = random.randint(1, 1000)
 logger.info(f"Target number for guessing game set to: {target_number}")
+
+# User ID to monitor for grammar and spelling
+monitored_user_id = 879401301526609972
 
 # Enable all intents, including privileged ones
 intents = discord.Intents.default()
@@ -86,7 +93,7 @@ async def auto_sync_commands():
     except Exception as e:
         logger.error(f"Error during periodic command sync: {traceback.format_exc()}")
 
-# Guessing game functionality
+# Grammar and spelling check for specific user
 @bot.event
 async def on_message(message):
     global target_number  # Declare target_number as global at the start of the function
@@ -94,6 +101,21 @@ async def on_message(message):
     # Avoid handling messages from bots
     if message.author.bot:
         return
+
+    # Check for grammar and spelling if the message author is the monitored user
+    if message.author.id == monitored_user_id:
+        matches = tool.check(message.content)
+        if matches:
+            corrections = []
+            for match in matches:
+                corrections.append(f"**Mistake:** {match.context}")
+                corrections.append(f"**Suggestion:** {match.replacements[0] if match.replacements else 'No suggestion'}")
+            correction_message = "\n".join(corrections)
+
+            # Send a reply with corrections
+            await message.channel.send(
+                f"Hey {message.author.mention}, here’s a grammar and spelling check on your message:\n\n{correction_message}"
+            )
 
     # Check if the message is in the specified guessing channel
     if message.channel.id == guess_channel_id:
