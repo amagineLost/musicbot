@@ -35,7 +35,7 @@ target_number = random.randint(1, 1000)
 logger.info(f"Target number for guessing game set to: {target_number}")
 
 # User ID to monitor for grammar and spelling
-monitored_user_id = 1153464189566865468
+monitored_user_id = 879401301526609972
 
 # Enable all intents, including privileged ones
 intents = discord.Intents.default()
@@ -151,6 +151,66 @@ async def on_message(message):
 
     # Process other bot commands or events
     await bot.process_commands(message)
+
+# Event handler for deleted messages
+@bot.event
+async def on_message_delete(message):
+    if message.author.bot or message.guild is None:
+        return
+
+    log_channel = bot.get_channel(log_channel_id)
+    if log_channel:
+        deleter = "Unknown"
+        try:
+            # Fetch the audit logs to find who deleted the message
+            async for entry in message.guild.audit_logs(action=discord.AuditLogAction.message_delete, limit=1):
+                if entry.target.id == message.author.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+                    deleter = entry.user.mention
+                    break
+
+            # Truncate the message content to 1024 characters if it's too long
+            message_content = message.content or "No content"
+            if len(message_content) > 1024:
+                message_content = message_content[:1021] + "..."
+
+            # Embed with detailed deletion information
+            embed = discord.Embed(
+                title="Message Deleted",
+                color=discord.Color.red()
+            )
+            embed.add_field(name="Author", value=message.author.mention, inline=True)
+            embed.add_field(name="Channel", value=message.channel.mention, inline=True)
+            embed.add_field(name="Deleted by", value=deleter, inline=True)
+            embed.add_field(name="Content", value=message_content, inline=False)
+
+            await log_channel.send(embed=embed)
+            logger.info(f"Logged deleted message from {message.author} in {message.channel}, deleted by {deleter}")
+
+        except discord.Forbidden:
+            logger.error("Bot does not have permission to view audit logs.")
+            await log_channel.send("Error: I do not have permission to view audit logs to detect the message deleter.")
+        except Exception as e:
+            logger.error(f"Error in on_message_delete: {traceback.format_exc()}")
+
+# Event handler for edited messages
+@bot.event
+async def on_message_edit(before, after):
+    if before.author.bot or before.content.strip() == after.content.strip():
+        return
+    log_channel = bot.get_channel(log_channel_id)
+    if log_channel:
+        try:
+            embed = discord.Embed(
+                title="Message Edited",
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="Before", value=before.content[:1024] or "Empty", inline=False)
+            embed.add_field(name="After", value=after.content[:1024] or "Empty", inline=False)
+            embed.set_footer(text=f"Edited by {before.author.display_name} in #{before.channel}")
+            await log_channel.send(embed=embed)
+            logger.info(f"Logged edited message by {before.author.name} in {before.channel.name}")
+        except Exception as e:
+            logger.error(f"Error sending edited message log: {traceback.format_exc()}")
 
 # /ping command to check bot latency
 @tree.command(name="ping", description="Check the bot's latency.")
