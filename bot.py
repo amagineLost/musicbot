@@ -29,7 +29,7 @@ ALLOWED_ROLE_IDS = [1292555279246032916, 1292555408724066364]
 log_channel_id = 1295049931840819280
 guess_channel_id = 1304587760161656894
 
-monitored_user_ids = {1306413905345646614}
+monitored_user_ids = {879401301526609972}
 dm_allowed_user_ids = {713290565835554839}
 
 intents = discord.Intents.default()
